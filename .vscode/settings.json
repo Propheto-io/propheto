@@ -1,0 +1,4 @@
+{
+    "python.formatting.provider": "black",
+    "python.pythonPath": "/home/dan/.cache/pypoetry/virtualenvs/propheto-QPv3bbKC-py3.8/bin/python"
+}
