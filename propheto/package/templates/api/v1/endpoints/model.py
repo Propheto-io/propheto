@@ -50,7 +50,7 @@ async def log_prediction(data):
 
 
 @router.post("/models/predict", response_model=Response)
-async def get_prediction(data: float):
+async def get_prediction(data: List):
     pred = [0]
     model = get_deserialize_model()
     print("Deserialized model")
@@ -64,9 +64,8 @@ async def get_prediction(data: float):
     # postprocessor for data
     # %{model_postprocessor}%
     response = {"prediction": pred}
-    _response = response
-    _response["data"] = data
-    await log_prediction(_response)
+    log_response = {"prediction": pred, "data": data}
+    await log_prediction(log_response)
     return Response(code=200, message="Success", result=response)
 
 

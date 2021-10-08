@@ -51,8 +51,8 @@ DESERIALIZE_SKLEARN = """
 """
 
 PREPROCESS_SKLEARN = """
-    data = float(data)
-    data = [[data]]
+    # data = float(data)
+    # data = [[data]]
 """
 
 PREDICT_SKLEARN = """
@@ -60,7 +60,7 @@ PREDICT_SKLEARN = """
 """
 
 POSTPROCESS_SKLEARN = """
-    pred = pred[0]
+    pred = pred.tolist()[0]
 """
 
 ## ---- TENSORFLOW ----
@@ -147,7 +147,7 @@ class ModelSerializer:
         try:
             import sklearn
 
-            is_sklearn = isinstance(model, sklearn.base.MultiOutputMixin)
+            is_sklearn = isinstance(model, sklearn.base.BaseEstimator)
             if is_sklearn:
                 model_type = "sklearn"
         except ImportError:  # module not found
@@ -193,7 +193,7 @@ class ModelSerializer:
             pickle.dump(model, open(Path(save_path , "model.sav"), "wb"))
             self.file_path = Path(save_path , "model.sav")
             self.model_name = "model.sav"
-            print(self.file_path)
+            # print(self.file_path)
         except:
             pass
 
@@ -350,33 +350,4 @@ class ModelSerializer:
             raise Exception("Model type error. Please check that the model is correct")
         return save_path
 
-    # def load_model(self, model_path: str) -> object:
-    #     """
-    #     Serialize the model to local directory based on the model type.
-
-    #     Parameters
-    #     ----------
-    #     model_path : str
-    #             Path for the output of the saved model.
-
-    #     Returns
-    #     -------
-    #     model : object
-    #             Return the deserialized model object
-
-    #     """
-
-    #     file_type = model_path.split(".")[-1]
-    #     file_model_map = {"h5": "tensorflow", "pth": "pytorch", "sav": "sklearn", "pkl": "xgboost"}
-    #     model_type = file_model_map[file_type]
-    #     self.model_type = model_type
-    #     if model_type == "sklearn":
-    #         model = self._load_sklearn(model_path)
-    #     elif model_type == "tensorflow":
-    #         model = self._load_tensorflow(model_path)
-    #     elif model_type == "pytorch":
-    #         model = self._load_pytorch(model_path)
-    #     else:
-    #         raise Exception("Model type error. Please check that the model is correct")
-    #     return model
 
