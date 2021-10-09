@@ -599,6 +599,8 @@ class Propheto:
             self.config.service_api_url = api_url
             print(api_url)
             print("Deployed API!")
+        
+        print(f"Check out your project in Propheto at: https://app.getpropheto.com/projects/{self.id}?q=report")
         # DEPLOY TO AWS
         self.config.iterations[self.config.current_iteration_id].set_status("active")
         self.config.status = "active"
