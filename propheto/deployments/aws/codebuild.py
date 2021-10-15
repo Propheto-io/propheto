@@ -13,8 +13,8 @@ class CodeBuild(BotoInterface):
     Interface for remotely building images for lambdas
     """
 
-    def __init__(self, profile_name: str, project_name: Optional[str] = "") -> None:
-        super().__init__(profile_name=profile_name)
+    def __init__(self, profile_name: str, region: Optional[str], project_name: Optional[str] = "") -> None:
+        super().__init__(profile_name=profile_name, region=region)
         self.codebuild_client = self.boto_client.client("codebuild")
         self.profile_name = profile_name
         self.project_name = project_name

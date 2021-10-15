@@ -19,11 +19,11 @@ class AWS(IAM, S3, Lambda, APIGateway, CloudFormation, ECR, CodeBuild):
         self.profile_name = profile_name
         self.iam = IAM(profile_name)
         self.s3 = S3(profile_name)
-        self.ecr = ECR(profile_name)
-        self.aws_lambda = Lambda(profile_name)
-        self.api_gateway = APIGateway(profile_name)
-        self.cloud_formation = CloudFormation(profile_name)
-        self.code_build = CodeBuild(profile_name)
+        self.ecr = ECR(profile_name, region=region)
+        self.aws_lambda = Lambda(profile_name, region=region)
+        self.api_gateway = APIGateway(profile_name, region=region)
+        self.cloud_formation = CloudFormation(profile_name, region=region)
+        self.code_build = CodeBuild(profile_name, region=region)
         self.aws_account_id = self.s3.aws_account_id
 
     def generate_cloudformation(self, description: str) -> None:

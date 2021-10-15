@@ -13,7 +13,7 @@ class BotoInterface:
     def __init__(
         self, profile_name: Optional[str] = "default", region: Optional[str] = None
     ) -> None:
-        self.boto_client = AWS_Session(profile_name=profile_name)
+        self.boto_client = AWS_Session(profile_name=profile_name, region_name=region)
         _caller_identiy = self.boto_client.client("sts").get_caller_identity()
         self.aws_account_id = _caller_identiy["Account"]
         self.aws_user_id = _caller_identiy["UserId"]

@@ -11,8 +11,8 @@ class ECR(BotoInterface):
     Create and manage AWS Elastic Container Registry.
     """
 
-    def __init__(self, profile_name: str, ecr_repository_name: str = "") -> None:
-        super().__init__(profile_name=profile_name)
+    def __init__(self, profile_name: str, region: str, ecr_repository_name: str = "") -> None:
+        super().__init__(profile_name=profile_name, region=region)
         self.ecr_client = self.boto_client.client("ecr")
         self.profile_name = profile_name
         self.ecr_repository_name = ecr_repository_name
