@@ -23,8 +23,7 @@ DESERIALIZE_PYTORCH = """
 
 PREPROCESS_PYTORCH = """
     import torch
-    data = float(data)
-    data = torch.tensor([[data]])
+    data = torch.tensor(data)
 """
 
 PREDICT_PYTORCH = """
@@ -33,6 +32,7 @@ PREDICT_PYTORCH = """
 
 POSTPROCESS_PYTORCH = """
     pred = [float(pred)]
+    data = str(data.numpy())
 """
 
 ### ---- SKLEARN ----
@@ -51,8 +51,6 @@ DESERIALIZE_SKLEARN = """
 """
 
 PREPROCESS_SKLEARN = """
-    # data = float(data)
-    # data = [[data]]
 """
 
 PREDICT_SKLEARN = """
@@ -79,8 +77,6 @@ DESERIALIZE_TENSORFLOW = """
 """
 
 PREPROCESS_TENSORFLOW = """
-    data = float(data)
-    data = [[data]]
 """
 
 PREDICT_TENSORFLOW = """
@@ -106,8 +102,7 @@ DESERIALIZE_XGBOOST = """
 
 PREPROCESS_XGBOOST = """
     import numpy as np
-    data = float(data)
-    data = np.array([[data]])
+    data = np.array(data)
 """
 
 PREDICT_XGBOOST = """
@@ -116,6 +111,7 @@ PREDICT_XGBOOST = """
 
 POSTPROCESS_XGBOOST = """
     pred = [float(pred)]
+    data = str(data)
 """
 
 
