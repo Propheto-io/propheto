@@ -226,7 +226,7 @@ class ContainerEnvironment:
         file_directory: str,
         ecr_repo: str,
         aws_account_id: str,
-        aws_region: str = "us-east-1",
+        region: str = "us-east-1",
         model_type: str = "sklearn",
         requirements_txt: str = "",
     ) -> str:
@@ -258,6 +258,6 @@ class ContainerEnvironment:
             buildspec_yaml = self.buildspec.replace(
                 "%{{AWS_ACCOUNT_ID}}%", aws_account_id
             )
-            buildspec_yaml = buildspec_yaml.replace("%{{AWS_REGION}}%", aws_region)
+            buildspec_yaml = buildspec_yaml.replace("%{{AWS_REGION}}%", region)
             buildspec_yaml = buildspec_yaml.replace("%{{AWS_ECR}}%", ecr_repo)
             buildspec_file.write(buildspec_yaml)
