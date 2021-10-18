@@ -468,8 +468,10 @@ class Propheto:
             remote_object=self.aws.ecr, id=ecr_repository_name, name="ECR"
         )
 
-        # CREATE BUCKET
-        s3_bucket_name = self.project_name
+        # CREATE BUCKET & FORMAT NAME
+        s3_bucket_name = self.project_name.replace(" ", "")
+        for number in range(10):
+            s3_bucket_name = s3_bucket_name.replace(str(number), "")
         if action == "deploy":
             s3_bucket_name = self.aws.s3.create_bucket(self.project_name)
             print("Created S3 bucket...")
@@ -513,11 +515,13 @@ class Propheto:
         print("Generated App Service...")
 
         # CREATE CONTAINER ENVIRONMENT
+        region = self.aws.region
         self.container_environment.generate_environment(
             file_directory=app_directory,
             ecr_repo=ecr_repository_name,
             aws_account_id=aws_account_id,
             model_type=model_type,
+            region=region,
         )
 
         # ZIP SERVICE
@@ -625,9 +629,7 @@ class Propheto:
         else:
             pass
 
-    def update(
-        self, actions: dict, model: Optional[object] = None, *args, **kwargs,
-    ) -> None:
+    def update(self, actions: dict, *args, **kwargs,) -> None:
         """
         Update a deployed model for various resources
 
@@ -639,7 +641,9 @@ class Propheto:
         model : object, optional
                 The trained model object that will be deployed. Required if the action type is related to the model
         """
+        ## ADD OPTION TO UPDATE NEW LOGS
         if "model" in actions:
+            model = actions["model"]
             model_filepath, _, _, _, _, _ = self._store_model(model)
             project_name_formatted = self.project_name.replace(" ", "").lower()
             # UPLOAD MODEL PACKAGE
@@ -652,11 +656,13 @@ class Propheto:
                 filename=_model_filename,
             )
             print("Uploaded ML model...")
+        elif "logs" in actions:
+            pass
         elif "api" in actions:
             # API ACTIONS SHOULD BE A DICTIONARY
-            if "generate_service" in actions['api']:
+            if "generate_service" in actions["api"]:
                 pass
-            elif "deploy_service" in actions['api']:
+            elif "deploy_service" in actions["api"]:
                 pass
             else:
                 raise Exception("Please specify exactly the action")

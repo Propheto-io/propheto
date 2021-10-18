@@ -18,7 +18,7 @@ class S3(BotoInterface):
         self,
         profile_name: Optional[str] = "defualt",
         s3_bucket_name: Optional[str] = "",
-        region: Optional[str] = None,
+        region: Optional[str] = "us-east-1",
         *args,
         **kwargs,
     ) -> None:
@@ -26,6 +26,7 @@ class S3(BotoInterface):
         self.s3_client = self.boto_client.client("s3")
         self.s3_bucket_name = s3_bucket_name
         self.profile_name = profile_name
+        self.region = region
 
     def to_dict(self) -> dict:
         """
@@ -133,8 +134,6 @@ class S3(BotoInterface):
                 "TagSet": [{"Key": key, "Value": self.tags[key]} for key in tags.keys()]
             }
             self.s3_client.put_bucket_tagging(Bucket=self.s3_bucket_name, Tagging=tags)
-        # Annoying amazon adds a / to the start of the bucket name
-        bucket_name = BucketResponse["Location"][1:]
         return bucket_name
 
     def empty_bucket(self, bucket_name: str) -> dict:
