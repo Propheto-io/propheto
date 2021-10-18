@@ -54,8 +54,8 @@ class CloudFormation(BotoInterface):
     AWS CloudFormation Template Class
     """
 
-    def __init__(self, profile_name: str, *args, **kwargs) -> None:
-        super().__init__(profile_name=profile_name)
+    def __init__(self, profile_name: str, region: Optional[str], *args, **kwargs) -> None:
+        super().__init__(profile_name=profile_name, region=region)
         self.cloudformation_client = self.boto_client.client("cloudformation")
         self.profile_name = profile_name
         self.cloud_template = cf_Template()
