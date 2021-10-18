@@ -77,7 +77,8 @@ pydantic==1.8.2
 python-dateutil==2.8.2
 pytz==2021.1
 s3transfer==0.4.2
-scikit-learn==0.24.2
+scikit-learn==1.0
+scikit-plot==0.3.7
 scipy==1.7.0
 six==1.16.0
 starlette==0.14.2

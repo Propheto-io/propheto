@@ -7,7 +7,7 @@ import inspect
 from time import time
 from warnings import warn
 from datetime import date, datetime
-from typing import Optional, Tuple, Any
+from typing import Optional, Tuple, Any, List, Dict
 from propheto.utilities import unique_id
 from requests import session
 from .package import (
@@ -599,8 +599,10 @@ class Propheto:
             self.config.service_api_url = api_url
             print(api_url)
             print("Deployed API!")
-        
-        print(f"Check out your project in Propheto at: https://app.getpropheto.com/projects/{self.id}?q=report")
+
+        print(
+            f"Check out your project in Propheto at: https://app.getpropheto.com/projects/{self.id}"
+        )
         # DEPLOY TO AWS
         self.config.iterations[self.config.current_iteration_id].set_status("active")
         self.config.status = "active"
@@ -622,3 +624,39 @@ class Propheto:
             )
         else:
             pass
+
+    def update(
+        self, actions: dict, model: Optional[object] = None, *args, **kwargs,
+    ) -> None:
+        """
+        Update a deployed model for various resources
+
+        Parameters
+        ----------
+        actions : dict, required
+                Required parameter specifying the type(s) of action(s) is to be performed. 
+                Options are 'model', 'api', where 'api' is a list with some arguments  
+        model : object, optional
+                The trained model object that will be deployed. Required if the action type is related to the model
+        """
+        if "model" in actions:
+            model_filepath, _, _, _, _, _ = self._store_model(model)
+            project_name_formatted = self.project_name.replace(" ", "").lower()
+            # UPLOAD MODEL PACKAGE
+            s3_model_path = ""
+            _model_filename = model_filepath.parts[-1]
+            print(_model_filename)
+            s3_model_path = self.aws.s3.upload_file(
+                project_name=self.project_name.replace(" ", ""),
+                source_path=model_filepath.as_posix(),
+                filename=_model_filename,
+            )
+            print("Uploaded ML model...")
+        elif "api" in actions:
+            # API ACTIONS SHOULD BE A DICTIONARY
+            if "generate_service" in actions['api']:
+                pass
+            elif "deploy_service" in actions['api']:
+                pass
+            else:
+                raise Exception("Please specify exactly the action")

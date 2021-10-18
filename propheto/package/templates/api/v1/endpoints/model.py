@@ -53,10 +53,6 @@ async def log_prediction(data):
 async def get_prediction(data: List):
     pred = [0]
     model = get_deserialize_model()
-    print("Deserialized model")
-    print(model)
-    print("Data is")
-    print(data)
     # preprocess data
     # %{model_preprocessor}%
     # predict from model

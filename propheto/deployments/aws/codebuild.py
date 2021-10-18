@@ -81,7 +81,7 @@ class CodeBuild(BotoInterface):
             environment={
                 "type": "LINUX_CONTAINER",
                 "image": "aws/codebuild/amazonlinux2-x86_64-standard:3.0",
-                "computeType": "BUILD_GENERAL1_SMALL",
+                "computeType": "BUILD_GENERAL1_MEDIUM",
                 "privilegedMode": True,
                 "imagePullCredentialsType": "CODEBUILD",
             },
@@ -112,7 +112,10 @@ class CodeBuild(BotoInterface):
             wait_counter += 1
             print(f"Build in progress... Status: {build_status} - {wait_counter}/30")
             sleep(15)
-        print(f"Build completed successfully!")
+        if build_status == "SUCCEEDED":
+            print(f"Build completed successfully!")
+        else:
+            raise Exception(f"Build did not complete successfully - {build_status}")
         return response
 
     def get_build_status(self, build_id: str) -> str:

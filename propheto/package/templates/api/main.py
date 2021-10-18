@@ -8,6 +8,7 @@ app = FastAPI(
     title="Propheto API",
     description="Sample API for the Propheto ML model service",
     root_path="/dev",
+    version="0.1.0",
 )
 app.include_router(router, prefix="/v1")
 
@@ -30,6 +31,16 @@ app.add_middleware(
 @app.get("/")
 def read_root():
     return {"Hello ML Practitioner": "from the Propheto ML service"}
+
+
+@app.get("/status")
+def read_root():
+    return {"message": "Active"}
+
+
+@app.get("/ping")
+def read_root():
+    return {"message": "pong"}
 
 
 # to make it work with Amazon Lambda, we create a handler object
