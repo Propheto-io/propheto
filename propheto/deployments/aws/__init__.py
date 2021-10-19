@@ -15,17 +15,20 @@ class AWS(IAM, S3, Lambda, APIGateway, CloudFormation, ECR, CodeBuild):
     AWS Interface class
     """
 
-    def __init__(self, profile_name: str, region: Optional[str] = None, * args, **kwargs):
+    def __init__(
+        self, profile_name: str, region: Optional[str] = None, *args, **kwargs
+    ):
         self.profile_name = profile_name
         self.iam = IAM(profile_name)
+        region = region if region else self.iam.boto_client.region_name
+        self.region = region
+        self.aws_account_id = self.iam.aws_account_id
         self.s3 = S3(profile_name=profile_name, region=region)
         self.ecr = ECR(profile_name, region=region)
         self.aws_lambda = Lambda(profile_name, region=region)
         self.api_gateway = APIGateway(profile_name, region=region)
         self.cloud_formation = CloudFormation(profile_name, region=region)
         self.code_build = CodeBuild(profile_name, region=region)
-        self.aws_account_id = self.s3.aws_account_id
-        self.region = region
 
     def generate_cloudformation(self, description: str) -> None:
         self.cloud_template.set_description(description)
