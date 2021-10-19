@@ -11,7 +11,9 @@ class ECR(BotoInterface):
     Create and manage AWS Elastic Container Registry.
     """
 
-    def __init__(self, profile_name: str, region: str, ecr_repository_name: str = "") -> None:
+    def __init__(
+        self, profile_name: str, region: str, ecr_repository_name: str = ""
+    ) -> None:
         super().__init__(profile_name=profile_name, region=region)
         self.ecr_client = self.boto_client.client("ecr")
         self.profile_name = profile_name
@@ -86,7 +88,7 @@ class ECR(BotoInterface):
         response = self.ecr_client.list_images(
             repositoryName=repository_name, maxResults=max_results
         )
-        return response["imageIds"][0]
+        return response["imageIds"]
 
     def get_ecr_image_uri(self, repository_name: str) -> dict:
         """
@@ -94,8 +96,10 @@ class ECR(BotoInterface):
         """
         repository = self.describe_repository(repository_name)
         repository_uri = repository["repositoryUri"]
-        images = self.list_images(repository_name)
-        image_tag = images["imageTag"]
+        # TODO: RETAG IMAGES
+        # images = self.list_images(repository_name)
+        # image_tag = images["imageTag"]
+        image_tag = "latest"
         return f"{repository_uri}:{image_tag}"
 
     def destroy(self, repository_name: str) -> dict:
