@@ -1,5 +1,5 @@
 Propheto - Open ML Platform 
-========
+===========================
 
 Propheto is a flexible, high-performance framework for deploying, managing, and monitoring models. Using Propheto, data scientists can quickly and easily deploy their models as complete, fully functioning microservices. Propheto allows:
 
