@@ -53,7 +53,11 @@ class Lambda(BotoInterface):
                 del state[attribute]
         return state
 
-    def loads(self, profile_name: Optional[str] = "default"):
+    def loads(
+        self,
+        profile_name: Optional[str] = "default",
+        region: Optional[str] = "us-east-1",
+    ):
         """
         Set the boto3 client object attributes. 
 
@@ -61,8 +65,10 @@ class Lambda(BotoInterface):
         ----------
         profile_name : str, optional
                 Default profile name for the boto3 session object.
+        region : str, optional
+                Region for the service to be deployed to
         """
-        super().__init__(profile_name=profile_name)
+        super().__init__(profile_name=profile_name, region=region)
         self.lambda_client = self.boto_client.client("lambda")
 
     def get_function_state(self, function_name: str) -> str:
