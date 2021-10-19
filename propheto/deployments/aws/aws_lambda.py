@@ -146,6 +146,15 @@ class Lambda(BotoInterface):
         )
         return response_parent, response_child
 
+    def update_lambda_function(self, function_name: str, image_uri: str) -> str:
+        """
+        Update the lambda function code with a new image
+        """
+        response = self.lambda_client.update_function_code(
+            FunctionName=function_name, ImageUri=image_uri
+        )
+        return response
+
     def get_lambda_arn(self, function_name: str) -> str:
         response = self.lambda_client.get_function(FunctionName=function_name)
         return response["Configuration"]["FunctionArn"]

@@ -495,7 +495,7 @@ class Propheto:
         # UPLOAD LOGS
         if action == "deploy":
             log_path = Path(self.working_directory, "propheto-package", "logs")
-            s3_thing = self.aws.s3.upload_folder(
+            s3_response = self.aws.s3.upload_folder(
                 project_name=self.project_name.replace(" ", ""),
                 local_folder_path=log_path,
                 output_folder_path="logs",
@@ -637,7 +637,7 @@ class Propheto:
         ----------
         actions : dict, required
                 Required parameter specifying the type(s) of action(s) is to be performed. 
-                Options are 'model', 'api', where 'api' is a list with some arguments  
+                Options are 'model', 'api', 'logs', where 'api' is a list with some arguments  
         model : object, optional
                 The trained model object that will be deployed. Required if the action type is related to the model
         """
@@ -647,22 +647,86 @@ class Propheto:
             model_filepath, _, _, _, _, _ = self._store_model(model)
             project_name_formatted = self.project_name.replace(" ", "").lower()
             # UPLOAD MODEL PACKAGE
-            s3_model_path = ""
             _model_filename = model_filepath.parts[-1]
             print(_model_filename)
             s3_model_path = self.aws.s3.upload_file(
-                project_name=self.project_name.replace(" ", ""),
+                project_name=project_name_formatted,
                 source_path=model_filepath.as_posix(),
                 filename=_model_filename,
             )
             print("Uploaded ML model...")
         elif "logs" in actions:
-            pass
+            log_path = Path(self.working_directory, "propheto-package", "logs")
+            s3_response = self.aws.s3.upload_folder(
+                project_name=self.project_name.replace(" ", ""),
+                local_folder_path=log_path,
+                output_folder_path="logs",
+            )
+            print("Uploaded local logs")
         elif "api" in actions:
             # API ACTIONS SHOULD BE A DICTIONARY
             if "generate_service" in actions["api"]:
-                pass
+                # GENERATE API CODE
+                s3_bucket_name = self.aws.s3.s3_bucket_name
+                s3_model_path = self.aws.s3.object_key # TODO: GET NAME
+                model_serializer = "" # TODO: GET NAME
+                model_preprocessor = "" # TODO: GET NAME
+                model_predictor = "" # TODO: GET NAME
+                model_postprocessor = "" # TODO: GET NAME
+                app_directory = self.api_service.generate_service(
+                    bucket_name=s3_bucket_name,
+                    object_key=s3_model_path,
+                    model_serializer=model_serializer,
+                    model_preprocessor=model_preprocessor,
+                    model_predictor=model_predictor,
+                    model_postprocessor=model_postprocessor,
+                    project_name=self.project_name.replace(" ", ""),
+                )
+                print("Generated App Service...")
+
+                # CREATE CONTAINER ENVIRONMENT
+                region = self.aws.region
+                aws_account_id = self.aws.aws_account_id
+                ecr_repository_name = self.aws.ecr.ecr_repository_name
+                model_type = "" # TODO: GET NAME
+                self.container_environment.generate_environment(
+                    file_directory=app_directory,
+                    ecr_repo=ecr_repository_name,
+                    aws_account_id=aws_account_id,
+                    model_type=model_type,
+                    region=region,
+                )
             elif "deploy_service" in actions["api"]:
-                pass
+                # ZIP SERVICE
+                self.zip_service.package_project(app_dir=self.project_dir)
+                print("Zipped service...")
+                
+                bucket_name = self.aws.s3.s3_bucket_name 
+                project_name = self.project_name.replace(" ", "")
+                object_key = f"{project_name}/lambda.zip"
+                # Delete zipfile  
+                response = self.s3_client.delete_object(
+                    bucket_name=bucket_name, object_key=object_key
+                )
+                # upload new file
+                s3_zip_path = self.aws.s3.upload_file(
+                    filename="lambda.zip",
+                    project_name=project_name,
+                )
+                print("Uploaded zipped service...")
+
+                # RUN CODEBUILD FROM S3
+                build_response = self.aws.code_build.build_image(project_name)
+                ecr_repository_name = self.aws.ecr.ecr_repository_name
+                # GET ARN FOR ECR IMAGE
+                image_uri = self.aws.ecr.get_ecr_image_uri(ecr_repository_name)
+
+                # CREATE LAMBDA FUNCTION
+                project_name_formatted = self.project_name.replace(" ", "").lower()
+                function_name = ""  # TODO: GET NAME
+                self.aws.aws_lambda.update_lambda_function(
+                    function_name, image_uri=image_uri
+                )
+                print("Updated lambda function...")
             else:
                 raise Exception("Please specify exactly the action")

@@ -1,4 +1,5 @@
 import os
+import requests
 from tqdm import tqdm
 from ...utilities import human_size, unique_id
 from .boto_session import BotoInterface
@@ -135,6 +136,20 @@ class S3(BotoInterface):
             }
             self.s3_client.put_bucket_tagging(Bucket=self.s3_bucket_name, Tagging=tags)
         return bucket_name
+
+    def delete_object(self, bucket_name: str, object_key: str) -> dict:
+        """
+        Delete an S3 Object
+
+        Parameters
+        ----------
+        bucket_name : str
+                The AWS S3 BucketName that is to be deleted
+        object_key : str
+                The key for the object to be deleted
+        """
+        response = self.s3_client.delete_object(Bucket=bucket_name, Key=object_key)
+        return response
 
     def empty_bucket(self, bucket_name: str) -> dict:
         """
