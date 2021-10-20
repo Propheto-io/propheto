@@ -132,7 +132,7 @@ class Propheto:
         description: str,
         status: str,
         local: bool = False,
-        remote_profile_name: Optional[str] = "default",
+        profile_name: Optional[str] = "default",
         *args,
         **kwargs,
     ) -> None:
@@ -153,7 +153,7 @@ class Propheto:
                 Project description
         local : bool, optional
                 Whether or not to load the local configuration
-        remote_profile_name : str, optional
+        profile_name : str, optional
                 Optional remote profile
         """
         self.config.id = self.id
@@ -172,19 +172,19 @@ class Propheto:
             filepath = subdir_path if has_subdir else current_dir_path
             with open(filepath, "r") as _config_file:
                 config = json.load(_config_file)
-            self._load_config(config, remote_profile_name)
+            self._load_config(config, profile_name)
         else:
             if id != "":
                 response_json = self.api.get_projects(project_id=id)
                 if "error" not in response_json:
-                    self._load_config(response_json["projects"][0], remote_profile_name)
+                    self._load_config(response_json["projects"][0], profile_name)
                 else:
                     self._create_project(name, version, iteration, description, status)
             elif name != "":
                 response_json = self.api.get_projects(project_name=name)
                 if "error" not in response_json and response_json["projects"] != []:
                     # TODO: HANDLE MULTIPLE MATCHES
-                    self._load_config(response_json["projects"][0], remote_profile_name)
+                    self._load_config(response_json["projects"][0], profile_name)
                 else:
                     self._create_project(name, version, iteration, description, status)
             else:
