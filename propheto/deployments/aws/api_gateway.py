@@ -1,3 +1,4 @@
+from os import remove
 from typing import Optional
 from .boto_session import BotoInterface
 import logging
@@ -28,6 +29,7 @@ class APIGateway(BotoInterface):
         self.profile_name = profile_name
         self.api_name = api_name
         self.service_api_url = service_api_url
+        self.region = region
 
     def to_dict(self) -> dict:
         """
@@ -58,7 +60,7 @@ class APIGateway(BotoInterface):
                 del state[attribute]
         return state
 
-    def loads(self, profile_name: Optional[str] = "default"):
+    def loads(self, profile_name: Optional[str] = "default", region: Optional[str] = "us-east-1"):
         """
         Set the boto3 client object attributes. 
 
@@ -66,8 +68,10 @@ class APIGateway(BotoInterface):
         ----------
         profile_name : str, optional
                 Default profile name for the boto3 session object.
+        region : str, optional
+                Region for the service to be deployed to
         """
-        super().__init__(profile_name=profile_name)
+        super().__init__(profile_name=profile_name, region=region)
         self.apigateway_client = self.boto_client.client("apigateway")
 
     def set_attributes(self, response) -> None:

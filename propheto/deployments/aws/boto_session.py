@@ -34,7 +34,11 @@ class BotoInterface:
                 del state[attribute]
         return state
 
-    def loads(self, profile_name: Optional[str] = "default"):
+    def loads(
+        self,
+        profile_name: Optional[str] = "default",
+        region: Optional[str] = "us-east-1",
+    ):
         """
         Set the boto3 client object attributes. 
 
@@ -42,8 +46,11 @@ class BotoInterface:
         ----------
         profile_name : str, optional
                 Default profile name for the boto3 session object.
+        region : str, optional
+                Region for the AWS services
         """
-        self.boto_client = AWS_Session(profile_name=profile_name)
+        super().__init__(profile_name=profile_name, region=region)
+        self.boto_client = AWS_Session(profile_name=profile_name, region_name=region)
         self.profile_name = profile_name
         _caller_identiy = self.boto_client.client("sts").get_caller_identity()
         self.aws_account_id = _caller_identiy["Account"]
