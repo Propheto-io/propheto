@@ -16,11 +16,18 @@ class AWS(IAM, S3, Lambda, APIGateway, CloudFormation, ECR, CodeBuild):
     """
 
     def __init__(
-        self, profile_name: str, region: Optional[str] = None, *args, **kwargs
+        self,
+        profile_name: Optional[str] = "default",
+        region: Optional[str] = None,
+        *args,
+        **kwargs
     ):
         self.profile_name = profile_name
         self.iam = IAM(profile_name)
+        # If no region specified try to use the default region for the profile
         region = region if region else self.iam.boto_client.region_name
+        # If the AWS profiles are not set up with a region then parse a default
+        region = region if region else "us-east-1"
         self.region = region
         self.aws_account_id = self.iam.aws_account_id
         self.s3 = S3(profile_name=profile_name, region=region)
