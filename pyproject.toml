@@ -3,7 +3,7 @@ name = "propheto"
 version = "0.1.5"
 description = "Propheto - MLOps Software Platform"
 authors = ["Dan McDade <dan@propheto.io>"]
-readme = "README.rst"
+readme = "README.md"
 homepage = "https://github.com/Propheto-io/propheto"
 license = "Apache-2.0"
 
