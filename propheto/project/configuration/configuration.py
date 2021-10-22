@@ -31,7 +31,6 @@ class Configuration:
         self.description = description
         self.current_iteration_id = current_iteration_id
         # TODO: FIGURE OUT ITERATIONS
-        # self.iterations = iterations
         self.iterations = {}
         self.status = status
         self.service_api_url = service_api_url

@@ -14,7 +14,9 @@
 
 import sys
 
-SUPPORTED_VERSIONS = [(3, 8), ]
+SUPPORTED_VERSIONS = [
+    (3, 8),
+]
 
 if sys.version_info[:2] not in SUPPORTED_VERSIONS:
     formatted_supported_versions = [
@@ -27,6 +29,13 @@ if sys.version_info[:2] not in SUPPORTED_VERSIONS:
     )
     raise RuntimeError(err_msg)
 
-__version__ = '0.1.5'
-
 from .app import Propheto
+
+import pkg_resources
+
+try:
+    __version__ = pkg_resources.get_distribution("metaflow").version
+except:
+    # this happens on remote environments since the job package
+    # does not have a version
+    __version__ = None
