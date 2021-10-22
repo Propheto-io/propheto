@@ -71,7 +71,7 @@ class Propheto:
         self._init_project(
             name=name,
             version=version,
-            iteration=iterations,
+            iterations=iterations,
             id=id,
             description=description,
             status=status,
@@ -107,7 +107,13 @@ class Propheto:
         self.id = self.config.id
 
     def _create_project(
-        self, name: str, version: str, iteration: list, description: str, status: str,
+        self,
+        name: str,
+        version: str,
+        iterations: list,
+        description: str,
+        status: str,
+        current_iteration_id: str,
     ) -> None:
         """
         
@@ -115,9 +121,10 @@ class Propheto:
         payload = {
             "name": name,
             "version": version,
-            "iterations": iteration,
+            "iterations": iterations,
             "description": description,
             "status": status,
+            "current_iteration_id": current_iteration_id,
         }
         response = self.api.create_project(payload)
         self.id = response["data"]["id"]
@@ -127,7 +134,7 @@ class Propheto:
         self,
         name: str,
         version: str,
-        iteration: list,
+        iterations: list,
         id: str,
         description: str,
         status: str,
@@ -145,7 +152,7 @@ class Propheto:
                 Project name for the specific project
         version : str
                 Project version for the current iteration
-        iteration : str
+        iterations : str
                 Project iterations
         id : str
                 String representing the unique project id
@@ -157,9 +164,11 @@ class Propheto:
                 Optional remote profile
         """
         self.config.id = self.id
-        self.config.add_iteration(
-            iteration_name=iteration, version=version, set_current=True
-        )
+        if "iteration_name" not in iterations:
+            iterations["iteration_name"] = self.experiment
+        self.config.add_iteration(**iterations, set_current=True)
+        current_iteration_id = self.config.current_iteration_id
+        iterations[current_iteration_id] = self.config.iterations[current_iteration_id].to_dict()
         if local:
             # Read the local propheto.config file
             # TODO: ACCEPT PATH PARAMETER FOR CONFIG
@@ -174,19 +183,34 @@ class Propheto:
                 config = json.load(_config_file)
             self._load_config(config, profile_name)
         else:
+            # Get remote configuration
             if id != "":
                 response_json = self.api.get_projects(project_id=id)
                 if "error" not in response_json:
                     self._load_config(response_json["projects"][0], profile_name)
                 else:
-                    self._create_project(name, version, iteration, description, status)
+                    self._create_project(
+                        name,
+                        version,
+                        iterations ,
+                        description,
+                        status,
+                        current_iteration_id,
+                    )
             elif name != "":
                 response_json = self.api.get_projects(project_name=name)
                 if "error" not in response_json and response_json["projects"] != []:
                     # TODO: HANDLE MULTIPLE MATCHES
                     self._load_config(response_json["projects"][0], profile_name)
                 else:
-                    self._create_project(name, version, iteration, description, status)
+                    self._create_project(
+                        name,
+                        version,
+                        iterations,
+                        description,
+                        status,
+                        current_iteration_id,
+                    )
             else:
                 raise Exception("Project name or project id are required fields.")
 
@@ -356,9 +380,22 @@ class Propheto:
         **kwargs,
     ) -> None:
         """
-        Take a trained model object and deploy it to a cloud environment
+        Take a trained model object and deploy it to a cloud environment.
+
+        Parameters
+        ----------
+        model : object, required
+                Trained model object to be deployed
+        target : str, required
+                Target specification for the deployment
+        deployment_type : str, optional
+                Deployment type for the service. 
+        if_exists : str, optional
+                Determine what to do if resource already exists
+                
         """
         # Read notebook
+        # TODO: generalize to read code not notebook
         self.code_introspecter.get_notebook_details()
         _ = self.code_introspecter.read_notebook()
         _ = self.code_introspecter.get_notebook_code_cells()
@@ -437,6 +474,10 @@ class Propheto:
         action : str, optional
                 Optional parameter specifying what type of action is to be performed
         """
+        # Check iterations, if one exists for current id, add new one to config
+        if self.config.iterations[self.config.current_iteration_id].resources != {}:
+            self.config.add_iteration(iteration_name=self.experiment, set_current=True)
+            current_iteration_id = self.config.current_iteration_id
         # parent_dir, project_dir = self._generate_base_artifacts()
         (
             model_filepath,
@@ -602,7 +643,7 @@ class Propheto:
             )
             self.config.service_api_url = api_url
             print("Deployed API! - ", api_url)
-        
+
         project_url = f"https://app.getpropheto.com/projects/{self.id}"
         print(f"Check out your project in Propheto at: {project_url}")
         # DEPLOY TO AWS
