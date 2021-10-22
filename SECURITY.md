@@ -1,5 +1,4 @@
 # Security Policy
-========
 
 Propheto is an early stage project under active development. We release new version every 2 weeks and sometimes sooner. We recommend users upgrade to the latest version as soon as it became available. 
 
