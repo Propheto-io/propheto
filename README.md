@@ -4,7 +4,7 @@
 
 <p align="center">
   <a href="https://getpropheto.com/">Website</a> •
-  <a href="https://docs.getpropheto.com/">Docs</a> •
+  <a href="https://docs.getpropheto.com/">Docs</a>
 </p>
 
 [![PyPI - Propheto Version](https://img.shields.io/pypi/v/zenml.svg?label=pip&logo=PyPI&logoColor=white)](https://pypi.org/project/propheto/)
@@ -16,7 +16,6 @@
 
 
 # Propheto - Open ML Platform 
-===========================
 
 Propheto is a flexible, high-performance framework for deploying, managing, and monitoring models. Using Propheto, data scientists can quickly and easily deploy their models as complete, fully functioning microservices. Propheto allows:
 
