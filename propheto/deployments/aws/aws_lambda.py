@@ -161,7 +161,8 @@ class Lambda(BotoInterface):
         )
         return response
 
-    def get_lambda_arn(self, function_name: str) -> str:
+    def get_lambda_arn(self, function_name: Optional[str] = "") -> str:
+        function_name = function_name if function_name != "" else self.function_name
         response = self.lambda_client.get_function(FunctionName=function_name)
         return response["Configuration"]["FunctionArn"]
 

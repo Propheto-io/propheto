@@ -7,10 +7,11 @@ from .aws_lambda import Lambda
 from .api_gateway import APIGateway
 from .ecr import ECR
 from .codebuild import CodeBuild
+from .cloudwatch import CloudWatch
 from typing import Optional
 
 
-class AWS(IAM, S3, Lambda, APIGateway, CloudFormation, ECR, CodeBuild):
+class AWS(IAM, S3, Lambda, APIGateway, CloudFormation, ECR, CodeBuild, CloudWatch):
     """
     AWS Interface class
     """
@@ -36,6 +37,7 @@ class AWS(IAM, S3, Lambda, APIGateway, CloudFormation, ECR, CodeBuild):
         self.api_gateway = APIGateway(profile_name, region=region)
         self.cloud_formation = CloudFormation(profile_name, region=region)
         self.code_build = CodeBuild(profile_name, region=region)
+        self.cloudwatch = CloudWatch(profile_name, region=region)
 
     def generate_cloudformation(self, description: str) -> None:
         self.cloud_template.set_description(description)
