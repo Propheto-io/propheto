@@ -45,7 +45,7 @@ class Propheto:
         iterations: Optional[dict] = {},
         status: Optional[str] = "inactive",
         init_local: Optional[bool] = False,
-        profile_name: Optional[str] = "default",
+        #profile_name: Optional[str] = "default",
         file_dir: Optional[str] = os.getcwd(),
         *args,
         **kwargs,
@@ -76,7 +76,7 @@ class Propheto:
             description=description,
             status=status,
             local=init_local,
-            profile_name=profile_name,
+            **kwargs,
         )
         # Initialize other propheto services
         # Classes to create ML services
