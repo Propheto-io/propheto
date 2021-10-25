@@ -38,6 +38,7 @@ class Configuration:
         # if so then load iteration values
         if iterations != {}:
             for id, item in iterations.items():
+                item = json.loads(item) if type(item) == str else item
                 item["id"] = id
                 self.add_iteration(**item)
 
