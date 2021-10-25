@@ -17,7 +17,7 @@ class S3(BotoInterface):
 
     def __init__(
         self,
-        profile_name: Optional[str] = "defualt",
+        profile_name: Optional[str] = "default",
         s3_bucket_name: Optional[str] = "",
         region: Optional[str] = "us-east-1",
         *args,

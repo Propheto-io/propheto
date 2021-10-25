@@ -392,7 +392,6 @@ class Propheto:
                 Deployment type for the service. 
         if_exists : str, optional
                 Determine what to do if resource already exists
-                
         """
         # Read notebook
         # TODO: generalize to read code not notebook
@@ -406,6 +405,8 @@ class Propheto:
             return "GCP deployments are currently still under development. Please contact support team at hello@propheto.io for more details."
         elif target == "azure":
             return "Azure deployments are currently still under development. Please contact support team at hello@propheto.io for more details."
+        elif target == "local":
+            return "Local deployments are currently still under development. Please contact support team at hello@propheto.io for more details."
         else:
             raise Exception(
                 "Please specify a target cloud deployment: AWS, GCP, or Azure"
@@ -643,6 +644,32 @@ class Propheto:
             )
             self.config.service_api_url = api_url
             print("Deployed API! - ", api_url)
+        
+        # SCHEDULE KEEP WARM
+        rule_name = "Propheto-Keepwarm-{0}".format(unique_id())
+        if action == "deploy":
+            response = self.aws.cloudwatch.create_keepwarm_event(
+                rule_name=rule_name,
+                role_arn=role_arn,
+                lambda_arn=lambda_arn
+            )
+            rule_arn = response['RuleArn']
+
+            self.aws.aws_lambda.lambda_client.add_permission(
+                FunctionName=function_name,
+                Action="lambda:InvokeFunction",
+                SourceArn=rule_arn,
+                Principal="events.amazonaws.com",
+                StatementId="Propheto-{0}".format(unique_id())
+            )
+            print("Created Cloudwatch Keepwarm...")
+        
+        self.config.add_resource(
+            remote_object=self.aws.cloudwatch,
+            id=rule_name,
+            name="Cloudwatch",
+        )
+
 
         project_url = f"https://app.getpropheto.com/projects/{self.id}"
         print(f"Check out your project in Propheto at: {project_url}")

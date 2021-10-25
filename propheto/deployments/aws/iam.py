@@ -18,7 +18,8 @@ ASSUME_POLICY = """{
           "lambda.amazonaws.com",
           "events.amazonaws.com",
           "s3.amazonaws.com",
-          "codebuild.amazonaws.com"
+          "codebuild.amazonaws.com",
+          "events.amazonaws.com"
         ]
       },
       "Action": "sts:AssumeRole"
@@ -131,6 +132,13 @@ ATTACH_POLICY = """{
         {
             "Effect": "Allow",
             "Action": [
+                "events:*"
+            ],
+            "Resource": "*"
+        },
+        {
+            "Effect": "Allow",
+            "Action": [
                 "codebuild:*"
             ],
             "Resource": "*"
@@ -207,7 +215,8 @@ class IAM(BotoInterface):
         waiter.wait(RoleName=role_name, WaiterConfig={"Delay": 5, "MaxAttempts": 30})
         return response
 
-    def get_iam_role_arn(self, role_name: str) -> str:
+    def get_iam_role_arn(self, role_name: Optional[str] = "") -> str:
+        role_name = role_name if role_name != "" else self.role_name
         iam_role = self.iam.get_role(RoleName=role_name)
         return iam_role["Role"]["Arn"]
 
