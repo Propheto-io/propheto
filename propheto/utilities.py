@@ -3,14 +3,19 @@ import stat
 import shutil
 import random
 import logging
+from pathlib import Path
+from typing import Optional
 
 logger = logging.getLogger(__name__)
 
 
-
-def human_size(num, suffix="B"):
+def human_size(num: float, suffix: Optional[str] = "B"):
     """
-    Convert bytes length to a human-readable version
+    Convert bytes length to a human-readable version.
+
+    Parameters
+    ----------
+    num : float
     """
     for unit in ("", "Ki", "Mi", "Gi", "Ti", "Pi", "Ei", "Zi"):
         if abs(num) < 1024.0:
@@ -19,12 +24,28 @@ def human_size(num, suffix="B"):
     return "{0:.1f}{1!s}{2!s}".format(num, "Yi", suffix)
 
 
-def copytree(src, dst, metadata=True, symlinks=False, ignore=None):
+def copytree(
+    src: str,
+    dst: str,
+    metadata: Optional[bool] = True,
+    symlinks: Optional[bool] = False,
+    ignore=None,
+) -> None:
     """
     This is a contributed re-implementation of 'copytree' that
     should work with the exact same behavior on multiple platforms.
     When `metadata` is False, file metadata such as permissions and modification
     times are not copied.
+
+    Parameters
+    ----------
+    src: str,
+    dst: str,
+    metadata: Optional[bool] = True,
+    symlinks: Optional[bool] = False,
+    ignore=None
+    
+
     """
 
     def copy_file(src, dst, item):
@@ -65,9 +86,51 @@ def copytree(src, dst, metadata=True, symlinks=False, ignore=None):
         copy_file(src, dst, item)
 
 
-def unique_id(length=12, has_numbers=True):
+def unique_id(length=12, has_numbers=True) -> str:
+    """
+    Generate a unique id
+
+    Parameters
+    ----------
+    length : int
+            The length for the unique identifier.
+    has_numbers : bool
+            Whether the id should include numbers as well as strings
+
+    Returns
+    -------
+    uid : str
+    """
     sequence = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
     sequence += sequence.lower()
     if has_numbers:
         sequence += "0123456789"
-    return "".join(random.sample(sequence, length))
+    uid = "".join(random.sample(sequence, length))
+    return uid
+
+
+def get_list_directory_files(directory_path: str) -> list:
+    """
+    Utility function for getting all of the files and paths in a given directory.
+
+    Parameters
+    ----------
+    directory_path : str
+            Path to the directory to search. 
+    
+    Returns
+    -------
+    directory_files : list
+    """
+    directory_contents = os.listdir(directory_path)
+    directory_files = []
+    for _item in directory_contents:
+        _path = Path(directory_path, _item)
+        if os.path.isdir(_path):
+            subdirectory_files = get_list_directory_files(_path)
+            directory_files.extend(subdirectory_files)
+        else:
+            # Exclude any cache files
+            if str(_path)[-4:] != ".pyc":
+                directory_files.append(_path)
+    return directory_files

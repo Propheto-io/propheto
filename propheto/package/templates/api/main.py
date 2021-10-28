@@ -1,16 +1,23 @@
+import os
 from fastapi import FastAPI
 from v1.routers import router
 from mangum import Mangum
 from fastapi.middleware.cors import CORSMiddleware
 
+stage = os.environ.get("STAGE", None)
+openapi_prefix = f"/{stage}" if stage else "/"
+
 
 app = FastAPI(
     title="Propheto API",
     description="Sample API for the Propheto ML model service",
-    root_path="/dev",
     version="0.1.0",
+    # openapi_prefix=openapi_prefix,
+    # root_path="/dev",
+    root_path=%{api_root_path}%,
 )
 app.include_router(router, prefix="/v1")
+
 
 origins = [
     "http://app.getpropheto.com",

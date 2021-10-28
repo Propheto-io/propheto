@@ -45,7 +45,7 @@ class Propheto:
         iterations: Optional[dict] = {},
         status: Optional[str] = "inactive",
         init_local: Optional[bool] = False,
-        #profile_name: Optional[str] = "default",
+        # profile_name: Optional[str] = "default",
         file_dir: Optional[str] = os.getcwd(),
         *args,
         **kwargs,
@@ -85,7 +85,7 @@ class Propheto:
         self.zip_service = ZipService(**kwargs)
         self.container_environment = ContainerEnvironment(**kwargs)
         self.serializer = ModelSerializer(**kwargs)
-        self.aws = AWS(**kwargs)
+        self.deployment = object
         self.code_introspecter = CodeIntrospect(file_dir=file_dir, **kwargs)
         self.working_directory = file_dir
         self.parent_dir, self.project_dir = self._generate_base_artifacts()
@@ -100,7 +100,14 @@ class Propheto:
         self, project: json, remote_profile_name: Optional[str] = "default"
     ) -> None:
         """
-        
+        Load the project configuration from input json object
+
+        Parameters
+        ----------
+        project : json
+                Project details json object.
+        remote_profile_name : str, optional
+                Profile name to use the remote services
         """
         self.config = Configuration(**project)
         self.config.loads(profile_name=remote_profile_name)
@@ -116,7 +123,17 @@ class Propheto:
         current_iteration_id: str,
     ) -> None:
         """
-        
+        Create a new project in the Propheto configuration DB
+
+        Parameters
+        ----------
+        name : str
+        version : str
+        iterations : list
+        descriptions : str
+        status : str
+        current_iteration_id : str
+
         """
         payload = {
             "name": name,
@@ -164,11 +181,18 @@ class Propheto:
                 Optional remote profile
         """
         self.config.id = self.id
-        if "iteration_name" not in iterations:
-            iterations["iteration_name"] = self.experiment
-        self.config.add_iteration(**iterations, set_current=True)
+        if iterations == {}:
+            self.config.add_iteration(iteration_name=self.experiment, set_current=True)
+        else:
+            for id, item in iterations.items():
+                if id != "iteration_name": # Hack round intializing the iteration
+                    item = json.loads(item) if type(item) == str else item
+                    item["id"] = id
+                    self.config.add_iteration(**item, set_current=True)
         current_iteration_id = self.config.current_iteration_id
-        iterations[current_iteration_id] = self.config.iterations[current_iteration_id].to_dict()
+        iterations[current_iteration_id] = self.config.iterations[
+            current_iteration_id
+        ].to_dict()
         if local:
             # Read the local propheto.config file
             # TODO: ACCEPT PATH PARAMETER FOR CONFIG
@@ -184,20 +208,7 @@ class Propheto:
             self._load_config(config, profile_name)
         else:
             # Get remote configuration
-            if id != "":
-                response_json = self.api.get_projects(project_id=id)
-                if "error" not in response_json:
-                    self._load_config(response_json["projects"][0], profile_name)
-                else:
-                    self._create_project(
-                        name,
-                        version,
-                        iterations ,
-                        description,
-                        status,
-                        current_iteration_id,
-                    )
-            elif name != "":
+            if name != "":
                 response_json = self.api.get_projects(project_name=name)
                 if "error" not in response_json and response_json["projects"] != []:
                     # TODO: HANDLE MULTIPLE MATCHES
@@ -212,7 +223,7 @@ class Propheto:
                         current_iteration_id,
                     )
             else:
-                raise Exception("Project name or project id are required fields.")
+                raise Exception("Project name is a required field.")
 
     def _create_directory(self) -> str:
         DIR_PATH = Path(self.working_directory, "propheto-package")
@@ -400,13 +411,14 @@ class Propheto:
         _ = self.code_introspecter.get_notebook_code_cells()
         self._validate_target(target)
         if target == "aws":
+            self.deployment = AWS(**kwargs)
             self._deploy_aws(model, action="deploy")
         elif target == "gcp":
             return "GCP deployments are currently still under development. Please contact support team at hello@propheto.io for more details."
         elif target == "azure":
             return "Azure deployments are currently still under development. Please contact support team at hello@propheto.io for more details."
         elif target == "local":
-            return "Local deployments are currently still under development. Please contact support team at hello@propheto.io for more details."
+            self._deploy_local(model)
         else:
             raise Exception(
                 "Please specify a target cloud deployment: AWS, GCP, or Azure"
@@ -421,38 +433,18 @@ class Propheto:
         # TODO: WRITE CLOUDFORMATION VARIABLES FROM RESOURCES
         project_name = self.project_name.replace(" ", "").lower()
         project_name += unique_id(length=4, has_numbers=False).lower()
-        self.aws.deploy_cloudformation(project_name)
+        self.deployment.deploy_cloudformation(project_name)
 
-    def _deploy_aws_zip_environment(self, model: object, target: str) -> None:
+    def _store_model(self, model: object, filepath: Optional[str] = "") -> str:
         """
-        Deploy a virtual environment to AWS
+        Determine proper model type, save the model to disk and return serialization/deserialization code. 
         """
-        pass
-
-    def _store_model(self, model: object) -> str:
-        """
-        Save the model.
-        """
-        file_dir = os.getcwd()
-        filepath = f"{file_dir}"
+        filepath = filepath if filepath != "" else os.getcwd()
         self.serializer.save_model(model, save_path=filepath)
         model_filename = self.serializer.file_path
-        (
-            model_serializer,
-            model_preprocessor,
-            model_predictor,
-            model_postprocessor,
-        ) = self.serializer.get_model_processing_code()
         # serialization_code, preprocessing_code, predict_code, postprocessing_code
         model_type = self.serializer.model_type
-        return (
-            model_filename,
-            model_serializer,
-            model_type,
-            model_preprocessor,
-            model_predictor,
-            model_postprocessor,
-        )
+        return model_filename, model_type
 
     def _generate_base_artifacts(self) -> Tuple[str]:
         """
@@ -463,6 +455,71 @@ class Propheto:
         project_dir = self._create_directory()
         print("Created project directory...")
         return parent_dir, project_dir
+
+    def _deploy_local(self, model: object) -> None:
+        """
+        Take a model as an input then deploy to AWS directly environment.
+
+        Parameters
+        ----------
+        model : object, required
+                The trained model object that will be deployed
+        """
+        # Check iterations, if one exists for current id, add new one to config
+        if self.config.iterations[self.config.current_iteration_id].resources != {}:
+            self.config.add_iteration(iteration_name=self.experiment, set_current=True)
+            current_iteration_id = self.config.current_iteration_id
+        # parent_dir, project_dir = self._generate_base_artifacts()
+        model_filepath, model_type = self.serializer.save_model(model)
+        output_code = self.serializer.get_model_processing_code(model_type, "local")
+        project_name_formatted = self.project_name.replace(" ", "").lower()
+
+        # LOCAL LOG PATH
+        local_log_path = Path(self.working_directory, "propheto-package", "logs")
+        local_log_path.mkdir(parents=True, exist_ok=True)
+        output_code['logs_path'] = str(local_log_path)
+
+        # STORE PREDICTIONS LOCALLY
+        _path = Path(self.working_directory, "propheto-package", "logs", "predictions")
+        _path.mkdir(parents=True, exist_ok=True)
+        # GENERATE API CODE
+        app_directory = self.api_service.generate_service(
+            model_filepath=str(model_filepath),
+            project_name=self.project_name.replace(" ", ""),
+            **output_code
+        )
+        print("Generated App Service...")
+
+        # CREATE CONTAINER ENVIRONMENT
+        self.deployment = VirtualEnvironment(
+            parent_dir=self.parent_dir, 
+            environment_directory=str(Path(self.working_directory, "propheto-package"))
+        )
+        self.deployment.generate_environment(name="env")
+        print("Created virtual environment...")
+
+        # # DEPLOY API
+        self.deployment.start_server()
+        print("Server running locally. You can test the api now at http://127.0.0.1:8000 and check the /docs endpoint")
+        # self.config.service_api_url = api_url
+        # print("Deployed API! - ", api_url)
+        print("If you'd like to see your model in our app, you need to expose your localhost and update the project")
+        project_url = f"https://app.getpropheto.com/projects/{self.id}"
+        print(f"Check out your project in Propheto at: {project_url}")
+
+        # DEPLOY TO AWS
+        self.config.iterations[self.config.current_iteration_id].set_status("active")
+        self.config.status = "active"
+
+        # Write config locally to project folder
+        self.config.write_config()
+
+        # Update the project config in Propheto
+        self.config.service_api_url = 'http://127.0.0.1:8000'
+        self.api.update_project(project_id=self.id, payload=self.config.to_dict())
+
+        # Navigate back to parent dir
+        os.chdir(self.parent_dir)
 
     def _deploy_aws(self, model: object, action: str = "deploy") -> None:
         """
@@ -480,34 +537,28 @@ class Propheto:
             self.config.add_iteration(iteration_name=self.experiment, set_current=True)
             current_iteration_id = self.config.current_iteration_id
         # parent_dir, project_dir = self._generate_base_artifacts()
-        (
-            model_filepath,
-            model_serializer,
-            model_type,
-            model_preprocessor,
-            model_predictor,
-            model_postprocessor,
-        ) = self._store_model(model)
+        model_filepath, model_type = self.serializer.save_model(model)
+        output_code = self.serializer.get_model_processing_code(model_type, "aws")
         project_name_formatted = self.project_name.replace(" ", "").lower()
         # CREATE VIRTUAL ENVIRONMENT
         # virtualenv = self.virtual_environment.generate_environment()
         # print("Created virtual environment...")
 
         # CREATE IAM / ROLE
-        aws_account_id = self.aws.aws_account_id
+        aws_account_id = self.deployment.aws_account_id
         role_arn = f"arn:aws:iam::{aws_account_id}:role/ProphetoAutoBuild"
-        role_arn = self.aws.iam.manage_iam(role_name="ProphetoAutoBuild")
+        role_arn = self.deployment.iam.manage_iam(role_name="ProphetoAutoBuild")
         # CREATE ECR REPOSITORY
         ecr_repository_name = (
             "propheto-" + unique_id(length=4, has_numbers=False).lower()
         )
         if action == "deploy":
-            ecr_response = self.aws.ecr.create_ecr_repository(
+            ecr_response = self.deployment.ecr.create_ecr_repository(
                 repository_name=ecr_repository_name
             )
             print("Created ECR Repository...")
         self.config.add_resource(
-            remote_object=self.aws.ecr, id=ecr_repository_name, name="ECR"
+            remote_object=self.deployment.ecr, id=ecr_repository_name, name="ECR"
         )
 
         # CREATE BUCKET & FORMAT NAME
@@ -515,11 +566,11 @@ class Propheto:
         for number in range(10):
             s3_bucket_name = s3_bucket_name.replace(str(number), "")
         if action == "deploy":
-            s3_bucket_name = self.aws.s3.create_bucket(self.project_name)
+            s3_bucket_name = self.deployment.s3.create_bucket(self.project_name)
             print("Created S3 bucket...")
 
         self.config.add_resource(
-            remote_object=self.aws.s3, id=s3_bucket_name, name="S3"
+            remote_object=self.deployment.s3, id=s3_bucket_name, name="S3"
         )
 
         # UPLOAD MODEL PACKAGE
@@ -527,7 +578,7 @@ class Propheto:
         if action == "deploy":
             _model_filename = model_filepath.parts[-1]
             print(_model_filename)
-            s3_model_path = self.aws.s3.upload_file(
+            s3_model_path = self.deployment.s3.upload_file(
                 project_name=self.project_name.replace(" ", ""),
                 source_path=model_filepath.as_posix(),
                 filename=_model_filename,
@@ -537,7 +588,7 @@ class Propheto:
         # UPLOAD LOGS
         if action == "deploy":
             log_path = Path(self.working_directory, "propheto-package", "logs")
-            s3_response = self.aws.s3.upload_folder(
+            s3_response = self.deployment.s3.upload_folder(
                 project_name=self.project_name.replace(" ", ""),
                 local_folder_path=log_path,
                 output_folder_path="logs",
@@ -545,19 +596,18 @@ class Propheto:
             print("Uploaded local logs")
 
         # GENERATE API CODE
+        api_deployment_stage = 'dev'
         app_directory = self.api_service.generate_service(
             bucket_name=s3_bucket_name,
             object_key=s3_model_path,
-            model_serializer=model_serializer,
-            model_preprocessor=model_preprocessor,
-            model_predictor=model_predictor,
-            model_postprocessor=model_postprocessor,
             project_name=self.project_name.replace(" ", ""),
+            api_root_path=f'"/{api_deployment_stage}"',
+            **output_code
         )
         print("Generated App Service...")
 
         # CREATE CONTAINER ENVIRONMENT
-        region = self.aws.region
+        region = self.deployment.region
         self.container_environment.generate_environment(
             file_directory=app_directory,
             ecr_repo=ecr_repository_name,
@@ -572,7 +622,7 @@ class Propheto:
 
         # UPLOAD ZIP PACKAGE
         if action == "deploy":
-            s3_zip_path = self.aws.s3.upload_file(
+            s3_zip_path = self.deployment.s3.upload_file(
                 filename="lambda.zip", project_name=self.project_name.replace(" ", "")
             )
             print("Uploaded zipped service...")
@@ -583,93 +633,88 @@ class Propheto:
         service_role_arn = role_arn
         if action == "deploy":
             code_location = f"{s3_bucket_name}/{s3_zip_path}"
-            project_response = self.aws.code_build.create_project(
+            project_response = self.deployment.code_build.create_project(
                 str(project_name),
                 str(project_description),
                 str(service_role_arn),
                 str(code_location),
             )
         self.config.add_resource(
-            remote_object=self.aws.code_build, id=project_name, name="CodeBuild",
+            remote_object=self.deployment.code_build, id=project_name, name="CodeBuild",
         )
 
         # RUN CODEBUILD FROM S3
         if action == "deploy":
-            build_response = self.aws.code_build.build_image(project_name)
+            build_response = self.deployment.code_build.build_image(project_name)
 
             # GET ARN FOR ECR IMAGE
-            image_uri = self.aws.ecr.get_ecr_image_uri(ecr_repository_name)
+            image_uri = self.deployment.ecr.get_ecr_image_uri(ecr_repository_name)
 
         # CREATE LAMBDA FUNCTION
         function_name = (
             project_name_formatted + "-" + unique_id(length=4, has_numbers=False)
         ).lower()
         if action == "deploy":
-            self.aws.aws_lambda.create_lambda_function(
+            self.deployment.aws_lambda.create_lambda_function(
                 function_name, role_arn, image_uri=image_uri,
             )
             print("Created lambda function...")
 
         self.config.add_resource(
-            remote_object=self.aws.aws_lambda, id=function_name, name="AWSLambda",
+            remote_object=self.deployment.aws_lambda, id=function_name, name="AWSLambda",
         )
-        lambda_arn = self.aws.aws_lambda.get_lambda_arn(function_name)
-        region = self.aws.api_gateway.region
+        lambda_arn = self.deployment.aws_lambda.get_lambda_arn(function_name)
+        region = self.deployment.api_gateway.region
         uri = f"arn:aws:apigateway:{region}:lambda:path/2015-03-31/functions/{lambda_arn}/invocations"
         # CREATE API
         #  https://{rest_api_id}.execute-api.{region}.amazonaws.com/{stage}
         if action == "deploy":
-            self.aws.api_gateway.create_api(
+            self.deployment.api_gateway.create_api(
                 project_name_formatted, self.description, self.version, uri
             )
             print("Created API...")
 
         self.config.add_resource(
-            remote_object=self.aws.api_gateway,
+            remote_object=self.deployment.api_gateway,
             id=project_name_formatted,
             name="APIGateway",
         )
 
         # PROVISION ACCESS
         if action == "deploy":
-            self.aws.aws_lambda.grant_lambda_permission(
-                self.aws.api_gateway.rest_api_id, function_name
+            self.deployment.aws_lambda.grant_lambda_permission(
+                self.deployment.api_gateway.rest_api_id, function_name
             )
 
             # DEPLOY API
-            api_url = self.aws.api_gateway.create_deployment(
-                stage_name="dev",
+            api_url = self.deployment.api_gateway.create_deployment(
+                stage_name=api_deployment_stage,
                 stage_description="Developent deployment",
                 description="Deployment",
             )
             self.config.service_api_url = api_url
             print("Deployed API! - ", api_url)
-        
+
         # SCHEDULE KEEP WARM
         rule_name = "Propheto-Keepwarm-{0}".format(unique_id())
         if action == "deploy":
-            response = self.aws.cloudwatch.create_keepwarm_event(
-                rule_name=rule_name,
-                role_arn=role_arn,
-                lambda_arn=lambda_arn
+            response = self.deployment.cloudwatch.create_keepwarm_event(
+                rule_name=rule_name, role_arn=role_arn, lambda_arn=lambda_arn
             )
-            rule_arn = response['RuleArn']
+            rule_arn = response["RuleArn"]
 
-            self.aws.aws_lambda.lambda_client.add_permission(
+            self.deployment.aws_lambda.lambda_client.add_permission(
                 FunctionName=function_name,
                 Action="lambda:InvokeFunction",
                 SourceArn=rule_arn,
                 Principal="events.amazonaws.com",
-                StatementId="Propheto-{0}".format(unique_id())
+                StatementId="Propheto-{0}".format(unique_id()),
             )
             print("Created Cloudwatch Keepwarm...")
-        
-        self.config.add_resource(
-            remote_object=self.aws.cloudwatch,
-            id=rule_name,
-            name="Cloudwatch",
-        )
 
+        self.config.add_resource(
+            remote_object=self.deployment.cloudwatch, id=rule_name, name="Cloudwatch",
+        )
 
         project_url = f"https://app.getpropheto.com/projects/{self.id}"
         print(f"Check out your project in Propheto at: {project_url}")
@@ -688,9 +733,9 @@ class Propheto:
 
     def _validate_target(self, target: str) -> None:
         target = target.lower().strip()
-        if target not in ["aws", "gcp", "azure"]:
+        if target not in ["aws", "gcp", "azure", "local"]:
             raise Exception(
-                "Please specify a target cloud deployment: AWS, GCP, or Azure"
+                "Please specify a target cloud deployment: AWS, GCP, Azure, or local deployments"
             )
         else:
             pass
@@ -715,7 +760,7 @@ class Propheto:
             # UPLOAD MODEL PACKAGE
             _model_filename = model_filepath.parts[-1]
             print(_model_filename)
-            s3_model_path = self.aws.s3.upload_file(
+            s3_model_path = self.deployment.s3.upload_file(
                 project_name=project_name,
                 source_path=model_filepath.as_posix(),
                 filename=_model_filename,
@@ -724,7 +769,7 @@ class Propheto:
         elif "logs" in actions:
             log_path = Path(self.working_directory, "propheto-package", "logs")
             project_name = self.project_name.replace(" ", "")
-            s3_response = self.aws.s3.upload_folder(
+            s3_response = self.deployment.s3.upload_folder(
                 project_name=project_name,
                 local_folder_path=log_path,
                 output_folder_path="logs",
@@ -734,8 +779,8 @@ class Propheto:
             # API ACTIONS SHOULD BE A DICTIONARY
             if "generate_service" in actions["api"]:
                 # GENERATE API CODE
-                s3_bucket_name = self.aws.s3.s3_bucket_name
-                s3_model_path = self.aws.s3.object_key  # TODO: GET NAME
+                s3_bucket_name = self.deployment.s3.s3_bucket_name
+                s3_model_path = self.deployment.s3.object_key  # TODO: GET NAME
                 model_serializer = ""  # TODO: GET NAME
                 model_preprocessor = ""  # TODO: GET NAME
                 model_predictor = ""  # TODO: GET NAME
@@ -752,9 +797,9 @@ class Propheto:
                 print("Generated App Service...")
 
                 # CREATE CONTAINER ENVIRONMENT
-                region = self.aws.region
-                aws_account_id = self.aws.aws_account_id
-                ecr_repository_name = self.aws.ecr.ecr_repository_name
+                region = self.deployment.region
+                aws_account_id = self.deployment.aws_account_id
+                ecr_repository_name = self.deployment.ecr.ecr_repository_name
                 model_type = ""  # TODO: GET NAME
                 self.container_environment.generate_environment(
                     file_directory=app_directory,
@@ -768,35 +813,35 @@ class Propheto:
                 self.zip_service.package_project(app_dir=self.project_dir)
                 print("Zipped service...")
 
-                bucket_name = self.aws.s3.s3_bucket_name
+                bucket_name = self.deployment.s3.s3_bucket_name
                 project_name = self.project_name.replace(" ", "")
                 object_key = f"{project_name}/lambda.zip"
                 # Delete zipfile
-                response = self.aws.s3.delete_object(
+                response = self.deployment.s3.delete_object(
                     bucket_name=bucket_name, object_key=object_key
                 )
                 # upload new file
-                s3_zip_path = self.aws.s3.upload_file(
+                s3_zip_path = self.deployment.s3.upload_file(
                     filename="lambda.zip", project_name=project_name,
                 )
                 print("Uploaded zipped service...")
 
                 # RUN CODEBUILD FROM S3
-                project_name = self.aws.code_build.project_name
-                build_response = self.aws.code_build.build_image(project_name)
-                ecr_repository_name = self.aws.ecr.ecr_repository_name
+                project_name = self.deployment.code_build.project_name
+                build_response = self.deployment.code_build.build_image(project_name)
+                ecr_repository_name = self.deployment.ecr.ecr_repository_name
                 # GET ARN FOR ECR IMAGE
-                image_uri = self.aws.ecr.get_ecr_image_uri(ecr_repository_name)
+                image_uri = self.deployment.ecr.get_ecr_image_uri(ecr_repository_name)
 
                 # CREATE LAMBDA FUNCTION
                 project_name_formatted = self.project_name.replace(" ", "").lower()
-                function_name = self.aws.aws_lambda.function_name
-                self.aws.aws_lambda.update_lambda_function(
+                function_name = self.deployment.aws_lambda.function_name
+                self.deployment.aws_lambda.update_lambda_function(
                     function_name, image_uri=image_uri
                 )
                 print("Updated lambda function...")
                 # DEPLOY API
-                api_url = self.aws.api_gateway.service_api_url
+                api_url = self.deployment.api_gateway.service_api_url
                 print("Deployed API! - ", api_url)
                 project_url = f"https://app.getpropheto.com/projects/{self.id}"
                 print(f"Check out your project in Propheto at: {project_url}")

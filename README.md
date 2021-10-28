@@ -32,4 +32,4 @@ The Propheto package works with all major system architectures so that it can ea
 
 It is quick and easy to get up and running with Propheto. Data scientists can install Propheto using tools like pip, conda, and R’s CRAN package library. With a simple authentication import statement, data scientists can then use Propheto’s packages to seamlessly interact with their AWS, GCP, Azure, or other cloud or on-premise system architecture as needed.
 
-Ready to get started? checkout our [Quickstart guide](https://docs.getpropheto.com/quickstart/) or [sample notebook](https://github.com/Propheto-io/propheto/blob/main/docs/Propheto%20Iris%20Classification.ipynb) to see Propheto in action.
+Ready to get started? checkout our [Quickstart guide](https://docs.getpropheto.com/quickstart/) or [sample notebook](https://github.com/Propheto-io/propheto/blob/main/docs/Propheto%20Iris%20Classification.ipynb) or [download the notebook directly](https://raw.githubusercontent.com/Propheto-io/propheto/main/docs/Propheto%20Iris%20Classification.ipynb) to see Propheto in action.

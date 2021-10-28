@@ -1,23 +1,17 @@
 import pickle
 import boto3
+import os
 from fastapi import APIRouter
 from typing import Optional, List
 from pydantic import BaseModel
 from datetime import datetime
 from time import time
 import json
+
+from starlette.types import Message
 from .logs import create_log
 
 router = APIRouter()
-
-
-class ModelsResponse(BaseModel):
-    Key: str
-    LastModified: datetime
-    ETag: str
-    Size: int
-    StorageClass: str
-    Owner: dict
 
 
 class Response(BaseModel):
@@ -32,12 +26,15 @@ def get_deserialize_model():
     return model
 
 
-@router.get("/models/", response_model=List[ModelsResponse])
+@router.get("/models/")
 def get_models(model_name: Optional[str] = "current"):
-    s3client = boto3.client("s3")
-    delimiter = f"{model_name}*" if model_name != "current" else "*"
-    response = s3client.list_objects(Bucket="%{bucket_name}%", Delimiter=delimiter)
-    return response["Contents"]
+    response = Response(code="", message="", result={})
+    # %{list_model_code}%
+    # s3client = boto3.client("s3")
+    # delimiter = f"{model_name}*" if model_name != "current" else "*"
+    # response = s3client.list_objects(Bucket="%{bucket_name}%", Delimiter=delimiter)
+    # return response["Contents"]
+    return response
 
 
 async def log_prediction(data):
@@ -46,7 +43,7 @@ async def log_prediction(data):
     js_data["created_at"] = created_at
     js_data["data"] = data
     filename = f"predictions/predict-{created_at}.json"
-    await create_log(filename=filename, filedata=json.dumps(js_data))
+    await create_log(filename=filename, file_data=json.dumps(js_data))
 
 
 @router.post("/models/predict", response_model=Response)
@@ -65,8 +62,8 @@ async def get_prediction(data: List):
     return Response(code=200, message="Success", result=response)
 
 
-@router.post("/models/{model_name}", response_model=Response)
-def set_model_api(model_name: str):
-    s3client = boto3.client("s3")
-    return Response(code=200, message="Success", result="test")
+# @router.post("/models/{model_name}", response_model=Response)
+# def set_model_api(model_name: str):
+#     s3client = boto3.client("s3")
+#     return Response(code=200, message="Success", result="test")
 
