@@ -38,9 +38,10 @@ class Configuration:
         # if so then load iteration values
         if iterations != {}:
             for id, item in iterations.items():
-                item = json.loads(item) if type(item) == str else item
-                item["id"] = id
-                self.add_iteration(**item)
+                if id != "iteration_name": # Hack round intializing the iteration
+                    item = json.loads(item) if type(item) == str else item
+                    item["id"] = id
+                    self.add_iteration(**item)
 
     def __repr__(self) -> str:
         return f"Configuration(id={self.id}, name={self.name}, version={self.version})"

@@ -15,7 +15,7 @@
 import sys
 
 SUPPORTED_VERSIONS = [
-    (3, 8),
+    (3, 6), (3, 7), (3, 8), (3, 9),
 ]
 
 if sys.version_info[:2] not in SUPPORTED_VERSIONS:
@@ -34,7 +34,7 @@ from .app import Propheto
 import pkg_resources
 
 try:
-    __version__ = pkg_resources.get_distribution("metaflow").version
+    __version__ = pkg_resources.get_distribution("propheto").version
 except:
     # this happens on remote environments since the job package
     # does not have a version

@@ -63,14 +63,21 @@ class APIService:
 
     def generate_service(
         self,
-        bucket_name: str,
-        object_key: str,
         model_serializer: str,
         model_preprocessor: str,
         model_predictor: str,
         model_postprocessor: str,
         project_name: str,
-        output_path: Optional[str] = None,
+        list_model_code: str,
+        list_logs_code: str,
+        get_logs_code: str,
+        create_logs_code: str,
+        bucket_name: Optional[str] = "",
+        object_key: Optional[str] = "",
+        model_filepath: Optional[str] = "",
+        logs_path: Optional[str] = "",
+        output_path: Optional[str] = "",
+        api_root_path: Optional[str] = "openapi_prefix",
         *args,
         **kwargs,
     ) -> str:
@@ -80,10 +87,6 @@ class APIService:
 
         Parameters
         ----------
-        bucket_name : str
-                Bucket name for the model artifacts.
-        object_key : str
-                Specific object key for the model file.
         model_serializer : str
                 Model serialzier code
         model_preprocessor : str
@@ -94,15 +97,32 @@ class APIService:
                 Prostprocessing and data transformation code for the predictions before returning
         project_name : str
                 Project name created from the S3 Bucket
+        list_model_code: str
+                API code for listing models from remote model registry
+        list_logs_code: str
+                API code for listing log files from remote log storate
+        get_logs_code: str
+                API code for getting logs from remote log DB
+        create_logs_code: str
+                Cod to create new logfile
+        bucket_name : str, optional
+                Bucket name for the model artifacts.
+        object_key : str, optional
+                Specific object key for the model file.        
+        model_filepath : str, optional
+                Path to the stored model file
+        logs_path : str, optional
+                Filepath to the logfiles
         output_path : str, optional
                 Output path directory for the API codes
-
+        api_root_path : str, optional
+                'root_path' argument for API prefix.
         Returns
         -------
         base_dir : str
             Output path for the generated API service code
         """
-        output_path = output_path if output_path else os.getcwd()
+        output_path = output_path if output_path != "" else os.getcwd()
         base_dir = Path(output_path, "api")
         DIR_PATH = Path(base_dir)
         DIR_PATH.mkdir(parents=True, exist_ok=True)
@@ -110,21 +130,25 @@ class APIService:
         template_files = self.get_list_api_template_files()
         for filename in template_files:
             file_contents = self._read_file(filename)
-            file_contents = file_contents.replace(
-                "%{model_serializer}%", model_serializer
-            )
-            file_contents = file_contents.replace(
-                "%{model_preprocessor}%", model_preprocessor
-            )
-            file_contents = file_contents.replace(
-                "%{model_predictor}%", model_predictor
-            )
-            file_contents = file_contents.replace(
-                "%{model_postprocessor}%", model_postprocessor
-            )
+            file_contents = file_contents.replace("%{model_serializer}%", model_serializer)
+            file_contents = file_contents.replace("%{model_preprocessor}%", model_preprocessor)
+            file_contents = file_contents.replace("%{model_predictor}%", model_predictor)
+            file_contents = file_contents.replace("%{model_postprocessor}%", model_postprocessor)
+
+            file_contents = file_contents.replace("%{list_model_code}%", list_model_code)
+            file_contents = file_contents.replace("%{list_logs_code}%", list_logs_code)
+            file_contents = file_contents.replace("%{get_logs_code}%", get_logs_code)
+            file_contents = file_contents.replace("%{create_logs_code}%", create_logs_code)
+
+            file_contents = file_contents.replace("%{logs_path}%", logs_path)
+
             file_contents = file_contents.replace("%{bucket_name}%", bucket_name)
             file_contents = file_contents.replace("%{project_name}%", project_name)
             file_contents = file_contents.replace("%{object_key}%", object_key)
+            file_contents = file_contents.replace("%{model_filepath}%", model_filepath)
+
+            file_contents = file_contents.replace("%{api_root_path}%", api_root_path)
+            
             # TODO FIX THIS FILE NAMING THING AND FIGURE OUT DIRECTORY STUFF
             _filepath_parts = Path(filename).parts
             api_file_loc = -1
@@ -133,7 +157,6 @@ class APIService:
                     api_file_loc = index
             _output_tuple = _filepath_parts[api_file_loc + 1:]
             _output_filename = Path(*_output_tuple)
-            # _output_filename = filename.split("/api")[-1]
             _output_file = Path(base_dir, _output_filename)
             self._generate_file(_output_file, file_contents)
         return base_dir

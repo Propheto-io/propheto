@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "propheto"
-version = "0.1.6"
+version = "0.1.7"
 description = "Propheto - MLOps Software Platform"
 authors = ["Dan McDade <dan@propheto.io>"]
 readme = "README.md"
@@ -8,7 +8,7 @@ homepage = "https://github.com/Propheto-io/propheto"
 license = "Apache-2.0"
 
 [tool.poetry.dependencies]
-python = "^3.8"
+python = "^3.6"
 requests = "^2.25.1"
 boto3 = "^1.17.105"
 tqdm = "^4.61.1"

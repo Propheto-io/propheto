@@ -1,7 +1,7 @@
 import os
 import requests
 from tqdm import tqdm
-from ...utilities import human_size, unique_id
+from ...utilities import human_size, unique_id, get_list_directory_files
 from .boto_session import BotoInterface
 from typing import Optional
 import logging
@@ -96,15 +96,15 @@ class S3(BotoInterface):
         s3_key : str
                 S3 key string
         """
-        # TODO: HANDLE NESTED LOG FOLDERS
-        for _, _, filenames in os.walk(local_folder_path):
-            for file in filenames:
-                _local_file = f"{local_folder_path}/{file}"
-                self.upload_file(
-                    file,
-                    f"{project_name}/{output_folder_path}",
-                    source_path=_local_file,
-                )
+        local_files = get_list_directory_files(local_folder_path)
+        for _local_file in local_files:
+            filename = _local_file.parts[-1]
+            self.upload_file(
+                filename=filename,
+                project_name=Path(project_name, output_folder_path),
+                # project_name=project_name,
+                source_path=_local_file,
+            )
         s3_key = f"{self.s3_bucket_name}/{project_name}/{output_folder_path}"
         return s3_key
 
@@ -192,7 +192,7 @@ class S3(BotoInterface):
         return delete_bucket_response
 
     def upload_file(
-        self, filename: str, project_name: str, source_path: str = None
+        self, filename: str, project_name: str, source_path: Optional[str] = ""
     ) -> str:
         """
         Upload given file to S3 bucket
@@ -212,8 +212,8 @@ class S3(BotoInterface):
                 S3 Path for the uploaded file/folder 
 
         """
-        source_path = source_path if source_path else Path(os.getcwd(), filename)
-        dest_path = project_name + "/" + filename
+        source_path = source_path if source_path != "" else Path(os.getcwd(), filename)
+        dest_path = str(Path(str(project_name), str(filename)))
         source_size = os.stat(source_path).st_size
         print("Uploading {0} ({1})..".format(dest_path, human_size(source_size)))
         progress = tqdm(

@@ -2,11 +2,100 @@ import os
 import pickle
 from datetime import datetime
 from time import time
-from typing import Tuple
+from typing import Dict, Tuple, Optional
 import logging
 from pathlib import Path
 
 logger = logging.getLogger(__name__)
+
+
+## ---- GENERAL ----
+READ_MODEL_LOCAL = """
+    with open('%{model_filepath}%', 'rb') as model_file:
+        body = model_file.read()
+""" 
+
+
+READ_MODEL_AWS = """
+    s3client = boto3.client("s3")
+    response = s3client.get_object(Bucket="%{bucket_name}%", Key="%{object_key}%")
+    body = response["Body"].read()
+""" 
+
+
+LIST_MODEL_LOCAL = """
+    logs_path = '%{logs_path}%'
+    response = os.listdir(logs_path)
+"""
+
+
+LIST_MODEL_AWS = """
+    s3client = boto3.client("s3")
+    delimiter = f"{model_name}*" if model_name != "current" else "*"
+    response = s3client.list_objects(Bucket="%{bucket_name}%", Delimiter=delimiter)
+    response = response['Contents']
+"""
+
+
+LIST_LOGS_AWS = """
+    s3client = boto3.client("s3")
+    delimiter = q if q else "*propheto-log-*"
+    prefix = "%{project_name}%/logs"
+    response = s3client.list_objects(
+        Bucket="%{bucket_name}%", Prefix=prefix, Delimiter=delimiter
+    )
+    if "Contents" not in response:
+        response['message'] = response
+    else:
+        response = response["Contents"]
+"""
+
+
+GET_LOGS_AWS = """
+    s3client = boto3.client("s3")
+    try:
+        response = s3client.get_object(Bucket="%{bucket_name}%", Key=log_file)
+        body = response["Body"]
+        if str(log_file.split(".")[-1]).lower() == "json":
+            return json.loads(body.read())
+        else:
+            return body.read()
+    except ClientError as error:
+        if error.response["Error"]["Code"] == "NoSuchKey":
+            return f"Key not found - {log_file}"
+        else:
+            raise
+"""
+
+
+CREATE_LOGS_AWS = """
+    s3client = boto3.client("s3")
+    log_base = "%{project_name}%/logs"
+    response = s3client.put_object(
+        Body=file_data, Bucket="%{bucket_name}%", Key=f"{log_base}/{filename}"
+    )
+"""
+
+
+LIST_LOGS_LOCAL = """
+    logs_path = '%{logs_path}%'
+    response = get_list_directory_files(logs_path)
+"""
+
+
+GET_LOGS_LOCAL = """
+    with open(f'{log_file}', 'rb') as log_file:
+        response = json.loads(log_file.read())
+"""
+
+
+CREATE_LOGS_LOCAL = """
+    logs_path = '%{logs_path}%'
+    file_path = f"{logs_path}/{filename}"
+    with open(file_path, 'w') as outfile:
+        json.dump(file_data, outfile)
+"""
+
 
 ## ---- PYTORCH ----
 DESERIALIZE_PYTORCH = """
@@ -14,26 +103,29 @@ DESERIALIZE_PYTORCH = """
     import torch
     import cloudpickle
 
-    s3client = boto3.client("s3")
-    response = s3client.get_object(Bucket="%{bucket_name}%", Key="%{object_key}%")
-    body = response["Body"].read()
+    body = b""
+    %{read_model}%
     
     model = cloudpickle.loads(body)
 """
+
 
 PREPROCESS_PYTORCH = """
     import torch
     data = torch.tensor(data)
 """
 
+
 PREDICT_PYTORCH = """
     pred = model(data) 
 """
+
 
 POSTPROCESS_PYTORCH = """
     pred = [float(pred)]
     data = str(data.numpy())
 """
+
 
 ### ---- SKLEARN ----
 
@@ -42,26 +134,31 @@ DESERIALIZE_SKLEARN = """
     import sklearn
     import pickle
 
-    s3client = boto3.client("s3")
-    response = s3client.get_object(Bucket="%{bucket_name}%", Key="%{object_key}%")
-    body = response["Body"].read()
+    body = b""
+    %{read_model}%
 
     model = pickle.loads(body)
     print(model)
 """
 
+
 PREPROCESS_SKLEARN = """
 """
+
 
 PREDICT_SKLEARN = """
     pred = model.predict(data) 
 """
 
+
 POSTPROCESS_SKLEARN = """
     pred = pred.tolist()[0]
 """
 
+
 ## ---- TENSORFLOW ----
+
+# TODO FIGURE OUT TENSORFLOW LOCAL VS REMOTE
 
 DESERIALIZE_TENSORFLOW = """
     # DESERIALIZE TENSORFLOW
@@ -76,16 +173,20 @@ DESERIALIZE_TENSORFLOW = """
         print(model)
 """
 
+
 PREPROCESS_TENSORFLOW = """
 """
+
 
 PREDICT_TENSORFLOW = """
     pred = model.predict(data) 
 """
 
+
 POSTPROCESS_TENSORFLOW = """
     pred = float(pred[0][0])
 """
+
 
 ## ---- XGBOOST ----
 DESERIALIZE_XGBOOST = """
@@ -93,21 +194,23 @@ DESERIALIZE_XGBOOST = """
     import xgboost
     import cloudpickle
 
-    s3client = boto3.client("s3")
-    response = s3client.get_object(Bucket="%{bucket_name}%", Key="%{object_key}%")
-    body = response["Body"].read()
-    
+    body = b""
+    %{read_model}%
+
     model = cloudpickle.loads(body)
 """
+
 
 PREPROCESS_XGBOOST = """
     import numpy as np
     data = np.array(data)
 """
 
+
 PREDICT_XGBOOST = """
     pred = model.predict(data)
 """
+
 
 POSTPROCESS_XGBOOST = """
     pred = [float(pred)]
@@ -186,8 +289,8 @@ class ModelSerializer:
         Save the Scikit-learn model object to a local file
         """
         try:
-            pickle.dump(model, open(Path(save_path , "model.sav"), "wb"))
-            self.file_path = Path(save_path , "model.sav")
+            pickle.dump(model, open(Path(save_path, "model.sav"), "wb"))
+            self.file_path = Path(save_path, "model.sav")
             self.model_name = "model.sav"
             # print(self.file_path)
         except:
@@ -210,7 +313,7 @@ class ModelSerializer:
             import torch
             import cloudpickle
 
-            file_path_dst = Path(save_path , "model.pth")
+            file_path_dst = Path(save_path, "model.pth")
             cloudpickle.dump(model, open(file_path_dst, "wb"))
             self.file_path = file_path_dst
         except ImportError:  # module not found
@@ -233,11 +336,11 @@ class ModelSerializer:
 
             # Save the entire model to a HDF5 file.
             # The '.h5' extension indicates that the model should be saved to HDF5.
-            model.save(Path(save_path , "model.h5"))
-            self.file_path = Path(save_path , "model.h5")
+            model.save(Path(save_path, "model.h5"))
+            self.file_path = Path(save_path, "model.h5")
         except ImportError:  # module not found
             pass
-        return Path(save_path , "model.h5")
+        return Path(save_path, "model.h5")
 
     def _load_tensorflow(self, model_path: str) -> object:
         model = object
@@ -257,7 +360,7 @@ class ModelSerializer:
             import xgboost
             import cloudpickle
 
-            file_path_dst = Path(save_path , "model.pkl")
+            file_path_dst = Path(save_path, "model.pkl")
             cloudpickle.dump(model, open(file_path_dst, "wb"))
             self.file_path = file_path_dst
         except ImportError:  # module not found
@@ -275,24 +378,30 @@ class ModelSerializer:
             pass
         return model
 
-    def get_model_processing_code(self, model_type: str = None) -> Tuple[str]:
+    def get_model_processing_code(
+        self, 
+        model_type: Optional[str] = "", 
+        deployment_target: Optional[str] = "local",
+    ) -> dict:
         """
         Serialize the model to local directory based on the model type.
 
         Parameters
         ----------
-        model_type : str
+        model_type : str, optional
                 String representing the type of model
-        
+        deployment_target : str, optional
+                String representing the deployment target for the model
+
         Returns
         -------
-        serialization_code : str
-                String containing the specific serialization code
+        output_code : dict
         """
-        model_type = model_type if model_type else self.model_type
-        serialization_code = (
-            preprocessing_code
-        ) = predict_code = postprocessing_code = ""
+        model_type = model_type if model_type != "" else self.model_type
+        serialization_code = ""
+        preprocessing_code = ""
+        predict_code = ""
+        postprocessing_code = ""
         if model_type == "sklearn":
             serialization_code = DESERIALIZE_SKLEARN
             preprocessing_code = PREPROCESS_SKLEARN
@@ -315,7 +424,33 @@ class ModelSerializer:
             postprocessing_code = POSTPROCESS_XGBOOST
         else:
             raise Exception(f"INVALIDE MODEL TYPE {model_type}")
-        return serialization_code, preprocessing_code, predict_code, postprocessing_code
+        
+        # UPDATE CODE BASED ON TARGETS 
+        if deployment_target == "local":
+            serialization_code = serialization_code.replace("%{read_model}%", READ_MODEL_LOCAL)
+            list_model_code = LIST_MODEL_LOCAL
+            list_logs_code = LIST_LOGS_LOCAL
+            get_logs_code = GET_LOGS_LOCAL
+            create_logs_code = CREATE_LOGS_LOCAL
+        elif deployment_target == "aws":
+            serialization_code = serialization_code.replace("%{read_model}%", READ_MODEL_AWS)
+            list_model_code = LIST_MODEL_AWS
+            list_logs_code = LIST_LOGS_AWS
+            get_logs_code = GET_LOGS_AWS
+            create_logs_code = CREATE_LOGS_AWS
+        else:
+            raise Exception(f"INVALIDE DEPLOYMENT TARGET {deployment_target}")
+        output_code = {
+            "model_serializer": serialization_code, 
+            "model_preprocessor": preprocessing_code, 
+            "model_predictor": predict_code, 
+            "model_postprocessor": postprocessing_code,
+            "list_model_code": list_model_code,
+            "list_logs_code": list_logs_code,
+            "get_logs_code": get_logs_code,
+            "create_logs_code": create_logs_code
+        }
+        return output_code
 
     def save_model(self, model: object, save_path: str = "", *args, **kwargs) -> str:
         """
@@ -344,6 +479,5 @@ class ModelSerializer:
             self._save_xgboost(model, save_path)
         else:
             raise Exception("Model type error. Please check that the model is correct")
-        return save_path
-
+        return self.file_path, model_type
 

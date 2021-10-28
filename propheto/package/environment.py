@@ -1,24 +1,33 @@
 # Environment class
+import os
+import pathlib
+import inspect
+import signal
 import subprocess
 import logging
+from typing import Optional
 from pathlib import Path
+
 logger = logging.getLogger(__name__)
 
+PYTHON_ENVIRONMENT = os.path.dirname(inspect.getfile(inspect))
+PYTHON_VERSION = Path(PYTHON_ENVIRONMENT).parts[-1]
+PYTHON_VERSION_NUMBER = PYTHON_VERSION.lower().replace('python', '')
 
-#       python: 3.8
+# python: 3.8
 BUILDSPEC_YAML = """version: 0.2
 
 env:
   shell: bash
   variables:
     DOCKER_FILE_NAME: 'Dockerfile'
-    CONTAINER_TO_RELEASE_NAME: 'test-app'
+    CONTAINER_TO_RELEASE_NAME: 'propheto-ml'
     REPOSITORY_URI: '%{{AWS_ACCOUNT_ID}}%.dkr.ecr.%{{AWS_REGION}}%.amazonaws.com/%{{AWS_ECR}}%'
 
 phases:
   install:
     runtime-versions:
-      python: 3.8
+      python: %{PYTHON_VERSION_NUMBER}%
   pre_build:
     commands:
       - echo Logging in to Amazon ECR...
@@ -46,14 +55,14 @@ phases:
 
 cache:
   paths:
-    - '/root/.cache/pip'"""
+    - '/root/.cache/pip'""".replace('%{PYTHON_VERSION_NUMBER}%', PYTHON_VERSION_NUMBER)
 
 
 # FROM public.ecr.aws/lambda/python:3.8
-DOCKERFILE_TEXT = """# LAMBDA ECR
-FROM public.ecr.aws/lambda/python:3.8
+DOCKERFILE_TEXT = f"""# LAMBDA ECR
+FROM public.ecr.aws/lambda/python:{PYTHON_VERSION_NUMBER}
 
-RUN /var/lang/bin/python3.8 -m pip install --upgrade pip
+RUN /var/lang/bin/python{PYTHON_VERSION_NUMBER} -m pip install --upgrade pip
 
 COPY . .
 
@@ -171,46 +180,11 @@ xgboost==1.4.2
 scikit-learn==0.24.2"""
 
 
-class VirtualEnvironment:
+class EnvironmentBase:
     """
-    Automatically create a virtual environment
+    Base environment for virtual and container environments
     """
 
-    def __init__(self, environment: str = None, *args, **kwargs) -> None:
-        self.environment = environment
-
-    def create_environment(self, name: str = "env") -> None:
-        """
-        Create a virtual environment.
-        """
-        self.environment = name
-        cmd = f"python3 -m venv {self.environment}"
-        subprocess.call(cmd, shell=True, executable="/bin/bash")
-
-    def install_packages(self, extra_packages: str = None) -> None:
-        """
-        Install the required packages into the virtual environment.
-        """
-        # cmd = f"source {self.environment}/bin/activate; pip install fastapi uvicorn[standard] mangum scikit-learn"
-        cmd = f"source {self.environment}/bin/activate; pip install fastapi uvicorn[standard] mangum boto3"
-        if extra_packages:
-            cmd = cmd + f" {extra_packages}"
-        subprocess.call(cmd, shell=True, executable="/bin/bash")
-
-    def generate_environment(self, name: str = "env") -> str:
-        """
-        Parent method to generate the environment.
-        """
-        self.create_environment(name)
-        self.install_packages()
-        return self.environment
-
-
-# Docker Class and requirements.txt
-class ContainerEnvironment:
-    """
-    Container environment
-    """
     docker = DOCKERFILE_TEXT
     sklearn_requirements = SKLEARN_REQUIREMENTS_TEXT
     pytorch_requirements = PYTORCH_REQUIREMENTS_TEXT
@@ -218,7 +192,130 @@ class ContainerEnvironment:
     xgboost_requirements = XGBOOST_REQUIREMENTS_TEXT
     buildspec = BUILDSPEC_YAML
 
-    def __init__(self, environment: str = None, *args, **kwargs) -> None:
+    def __init__(self) -> None:
+        pass
+
+
+class VirtualEnvironment(EnvironmentBase):
+    """
+    Automatically create a virtual environment
+    """
+
+    def __init__(
+        self, 
+        parent_dir: Optional[str] = "",
+        environment_directory: Optional[str] = "", 
+        environment: Optional[str] = "", 
+        *args, 
+        **kwargs
+    ) -> None:
+        super().__init__()
+        self.parent_dir = parent_dir
+        self.environment_directory = environment_directory
+        self.environment = environment
+        self.server_pro = None
+        self.remote_server_pro = None
+
+    def create_environment(self, name: Optional[str] = "env") -> None:
+        """
+        Create a virtual environment.
+        """
+        print(self.environment_directory)
+        os.chdir(self.environment_directory)
+        self.environment = name
+        cmd = f"python3 -m venv {self.environment}"
+        subprocess.call(cmd, shell=True, executable="/bin/bash")
+        os.chdir(self.parent_dir)
+
+
+    def install_packages(self, extra_packages: str = None) -> None:
+        """
+        Install the required packages into the virtual environment.
+        """
+        # cmd = f"source {self.environment}/bin/activate; pip install fastapi uvicorn[standard] mangum boto3"
+        os.chdir(self.environment_directory)
+        cmd = (
+            f"source {self.environment}/bin/activate; pip install -r requirements.txt;"
+        )
+        if extra_packages:
+            cmd = cmd + f"pip install {extra_packages}"
+        subprocess.call(cmd, shell=True, executable="/bin/bash")
+        os.chdir(self.parent_dir)
+        
+
+    def start_server(self) -> None:
+        # The os.setsid() is passed in the argument preexec_fn so
+        # it's run after the fork() and before  exec() to run the shell.
+        os.chdir(self.environment_directory)
+        cmd = f"source {self.environment}/bin/activate; cd api; uvicorn main:app --reload"
+        pro = subprocess.Popen(
+            cmd,
+            stdout=subprocess.PIPE,
+            shell=True,
+            preexec_fn=os.setsid,
+            executable="/bin/bash",
+        )
+        self.server_pro = pro
+        os.chdir(self.parent_dir)
+    
+    def expose(self):
+        cmd = "ssh -R 80:localhost:8000 localhost.run"
+        pro = subprocess.Popen(
+            cmd,
+            stdout=subprocess.PIPE,
+            shell=True,
+            preexec_fn=os.setsid,
+            executable="/bin/bash",
+        )
+        self.remote_server_pro = pro
+
+    def kill_server(self, pid: Optional[str] = "") -> None:
+        pid = pid if pid != "" else self.server_pro.pid
+        os.killpg(os.getpgid(pid), signal.SIGTERM)  # Send the signal to all the process groups
+
+    def generate_environment(
+        self,
+        name: Optional[str] = "env",
+        file_directory: Optional[str] = "",
+        model_type: Optional[str] = "sklearn",
+        requirements_txt: Optional[str] = "",
+    ) -> str:
+        """
+        Parent method to generate the environment.
+        """
+        self.create_environment(name)
+        file_directory = file_directory if file_directory != "" else self.environment_directory
+        print("Creating Dockerfile...")
+        with open(Path(file_directory, "Dockerfile"), "w") as docker_file:
+            docker_file.write(self.docker)
+        print("Creating requirements...")
+        with open(Path(file_directory, "requirements.txt"), "w") as requirements_file:
+            if requirements_txt == "":
+                if model_type == "sklearn":
+                    requirements_file.write(self.sklearn_requirements)
+                elif model_type == "pytorch":
+                    requirements_file.write(self.pytorch_requirements)
+                elif model_type == "tensorflow":
+                    requirements_file.write(self.tensorflow_requirements)
+                elif model_type == "xgboost":
+                    requirements_file.write(self.xgboost_requirements)
+            else:
+                raise Exception(
+                    "Model type {model_type} is unsupported. Please use a different model type."
+                )
+                # requirements_file.write(requirements_txt)
+        self.install_packages()
+        return self.environment
+
+
+# Docker Class and requirements.txt
+class ContainerEnvironment(EnvironmentBase):
+    """
+    Container environment
+    """
+
+    def __init__(self, environment: Optional[str] = "", *args, **kwargs) -> None:
+        super().__init__()
         self.environment = environment
 
     def generate_environment(

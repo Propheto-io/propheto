@@ -1,6 +1,8 @@
+import os
 import pickle
 import boto3
 import json
+from pathlib import Path
 from botocore.exceptions import ClientError
 from fastapi import APIRouter
 from typing import Optional, List
@@ -8,6 +10,24 @@ from pydantic import BaseModel
 from datetime import datetime
 
 router = APIRouter()
+
+
+def get_list_directory_files(directory_path: str) -> list:
+    """
+    Utility function for getting the directory files.
+    """
+    directory_contents = os.listdir(directory_path)
+    directory_files = []
+    for _item in directory_contents:
+        _path = Path(directory_path, _item)
+        if os.path.isdir(_path):
+            subdirectory_files = get_list_directory_files(_path)
+            directory_files.extend(subdirectory_files)
+        else:
+            # Exclude any cache files
+            if str(_path)[-4:] != ".pyc": 
+                directory_files.append(_path)
+    return directory_files
 
 
 class LogsResponse(BaseModel):
@@ -26,42 +46,25 @@ class Response(BaseModel):
 
 
 @router.get("/logs", summary="Get a specific log based on file key")
-def get_log(key: str):
-    s3client = boto3.client("s3")
-    try:
-        response = s3client.get_object(Bucket="%{bucket_name}%", Key=key)
-        body = response["Body"]
-        if str(key.split(".")[-1]).lower() == "json":
-            return json.loads(body.read())
-        else:
-            return body.read()
-    except ClientError as error:
-        if error.response["Error"]["Code"] == "NoSuchKey":
-            return f"Key not found - {key}"
-        else:
-            raise
+def get_log(log_file: str):
+    response = {}
+    # %{get_logs_code}%
+    return response 
 
 
 @router.get(
-    "/logs/list", response_model=List[LogsResponse], summary="List available logs"
+    "/logs/list", summary="List available logs"
 )
 def get_logs(q: Optional[str] = None):
-    s3client = boto3.client("s3")
-    delimiter = q if q else "*propheto-log-*"
-    prefix = "%{project_name}%/logs"
-    response = s3client.list_objects(
-        Bucket="%{bucket_name}%", Prefix=prefix, Delimiter=delimiter
-    )
-    return response["Contents"]
+    response = {}
+    # %{list_logs_code}%
+    return response
 
 
 @router.post("/logs", summary="Create a new log")
-async def create_log(filename: str, filedata: str):
-    s3client = boto3.client("s3")
-    log_base = "%{project_name}%/logs"
-    response = s3client.put_object(
-        Body=filedata, Bucket="%{bucket_name}%", Key=f"{log_base}/{filename}"
-    )
+async def create_log(filename: str, file_data: str):
+    response = {}
+    # %{create_logs_code}%
     return response
 
 
