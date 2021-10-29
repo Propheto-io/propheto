@@ -391,6 +391,7 @@ class Propheto:
         target: str,
         deployment_type: Optional[str] = "realtime-serverless",
         if_exists: Optional[str] = "update",
+        introspect_code: Optional[bool] = True,
         *args,
         **kwargs,
     ) -> None:
@@ -407,12 +408,15 @@ class Propheto:
                 Deployment type for the service. 
         if_exists : str, optional
                 Determine what to do if resource already exists
+        introspect_code : bool, optional
+                Flag to determine if code introspection should occur
         """
         # Read notebook
         # TODO: generalize to read code not notebook
-        self.code_introspecter.get_notebook_details()
-        _ = self.code_introspecter.read_notebook()
-        _ = self.code_introspecter.get_notebook_code_cells()
+        if introspect_code:
+            self.code_introspecter.get_notebook_details()
+            _ = self.code_introspecter.read_notebook()
+            _ = self.code_introspecter.get_notebook_code_cells()
         self._validate_target(target)
         os.chdir(self.package_dir)
         if target == "aws":
