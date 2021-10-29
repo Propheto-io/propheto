@@ -88,6 +88,7 @@ class Propheto:
         self.deployment = object
         self.code_introspecter = CodeIntrospect(file_dir=file_dir, **kwargs)
         self.working_directory = file_dir
+        self.package_dir = file_dir
         self.parent_dir, self.project_dir = self._generate_base_artifacts()
 
     def __repr__(self) -> str:
@@ -226,10 +227,13 @@ class Propheto:
                 raise Exception("Project name is a required field.")
 
     def _create_directory(self) -> str:
-        DIR_PATH = Path(self.working_directory, "propheto-package")
-        DIR_PATH.mkdir(parents=True, exist_ok=True)
-        os.chdir(DIR_PATH)
-        return DIR_PATH.absolute()
+        """
+        Create a directory for the generated service code to reside if one doesnt already exist.
+        """
+        self.package_dir = Path(self.working_directory, "propheto-package")
+        self.package_dir.mkdir(parents=True, exist_ok=True)
+        os.chdir(self.package_dir)
+        return self.package_dir.absolute()
 
     def model(self, action: str, *args, **kwargs) -> None:
         """
@@ -465,6 +469,7 @@ class Propheto:
         model : object, required
                 The trained model object that will be deployed
         """
+        os.chdir(self.package_dir)
         # Check iterations, if one exists for current id, add new one to config
         if self.config.iterations[self.config.current_iteration_id].resources != {}:
             self.config.add_iteration(iteration_name=self.experiment, set_current=True)
@@ -532,6 +537,7 @@ class Propheto:
         action : str, optional
                 Optional parameter specifying what type of action is to be performed
         """
+        os.chdir(self.package_dir)
         # Check iterations, if one exists for current id, add new one to config
         if self.config.iterations[self.config.current_iteration_id].resources != {}:
             self.config.add_iteration(iteration_name=self.experiment, set_current=True)
