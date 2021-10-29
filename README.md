@@ -17,6 +17,8 @@
 
 # Propheto - Open ML Platform 
 
+## Overview
+
 Propheto is a flexible, high-performance framework for deploying, managing, and monitoring models. Using Propheto, data scientists can quickly and easily deploy their models as complete, fully functioning microservices. Propheto allows:
 
 - Integration first to support all major data systems, ML frameworks, amd MLOps tools
@@ -30,6 +32,24 @@ With only a few simple commands in their IDE (jupyter notebooks, VS Code, Pychar
 
 The Propheto package works with all major system architectures so that it can easily integrate into the production data and software applications and can easily be managed by other DevOps or software engineering resources. However, Propheto also makes it such that data scientists can self-manage these resources without any burden and without working through these other teams.
 
-It is quick and easy to get up and running with Propheto. Data scientists can install Propheto using tools like pip, conda, and R’s CRAN package library. With a simple authentication import statement, data scientists can then use Propheto’s packages to seamlessly interact with their AWS, GCP, Azure, or other cloud or on-premise system architecture as needed.
+Ready to get started? checkout our [Quickstart guide](https://docs.getpropheto.com/quickstart/) or [sample notebook](https://github.com/Propheto-io/propheto/blob/main/docs/Propheto%20Iris%20Classification.ipynb) to see Propheto in action.
 
-Ready to get started? checkout our [Quickstart guide](https://docs.getpropheto.com/quickstart/) or [sample notebook](https://github.com/Propheto-io/propheto/blob/main/docs/Propheto%20Iris%20Classification.ipynb) or [download the notebook directly](https://raw.githubusercontent.com/Propheto-io/propheto/main/docs/Propheto%20Iris%20Classification.ipynb) to see Propheto in action.
+
+## Installation
+Propheto is hosted on [pypi](https://pypi.org/project/propheto/) and can be installed by simply using `pip`
+
+```sh
+pip install propheto
+```
+
+## Get in Touch
+There are several ways to get in touch with us:
+
+* Open an issue at: https://github.com/Propheto-op/propheto 
+* Email us at: hello@propheto.io
+
+## Contributing
+Thanks so much for your interest in supporting our project. We welcome any contributions to Propheto. We will be putting together a contribution guide but in the meantime please feel free to reach out to us or submit PRs as you see fit.
+
+## License
+Propheto is licensed under Apache 2.0
