@@ -414,6 +414,7 @@ class Propheto:
         _ = self.code_introspecter.read_notebook()
         _ = self.code_introspecter.get_notebook_code_cells()
         self._validate_target(target)
+        os.chdir(self.package_dir)
         if target == "aws":
             self.deployment = AWS(**kwargs)
             self._deploy_aws(model, action="deploy")
@@ -469,7 +470,6 @@ class Propheto:
         model : object, required
                 The trained model object that will be deployed
         """
-        os.chdir(self.package_dir)
         # Check iterations, if one exists for current id, add new one to config
         if self.config.iterations[self.config.current_iteration_id].resources != {}:
             self.config.add_iteration(iteration_name=self.experiment, set_current=True)
@@ -537,7 +537,6 @@ class Propheto:
         action : str, optional
                 Optional parameter specifying what type of action is to be performed
         """
-        os.chdir(self.package_dir)
         # Check iterations, if one exists for current id, add new one to config
         if self.config.iterations[self.config.current_iteration_id].resources != {}:
             self.config.add_iteration(iteration_name=self.experiment, set_current=True)
