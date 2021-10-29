@@ -391,7 +391,7 @@ class Propheto:
         target: str,
         deployment_type: Optional[str] = "realtime-serverless",
         if_exists: Optional[str] = "update",
-        introspect_code: Optional[bool] = True,
+        introspect_code: Optional[bool] = False,
         *args,
         **kwargs,
     ) -> None:
