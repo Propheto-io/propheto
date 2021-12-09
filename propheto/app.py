@@ -571,7 +571,7 @@ class Propheto:
         )
 
         # CREATE BUCKET & FORMAT NAME
-        s3_bucket_name = self.project_name.replace(" ", "")
+        s3_bucket_name = self.project_name.replace(" ", "").replace(".", "")
         for number in range(10):
             s3_bucket_name = s3_bucket_name.replace(str(number), "")
         if action == "deploy":
@@ -587,6 +587,16 @@ class Propheto:
         if action == "deploy":
             _model_filename = model_filepath.parts[-1]
             print(_model_filename)
+            # Upload a datetime stamped version of the model as well
+            _timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+            _split_model_filename, _split_model_filetype = _model_filename.split('.')
+            _timestamped_model_filename = f"models/{_split_model_filename}_{_timestamp}.{_split_model_filetype}"
+            _ = self.deployment.s3.upload_file(
+                project_name=self.project_name.replace(" ", ""),
+                source_path=model_filepath.as_posix(),
+                filename=_timestamped_model_filename,
+            )
+            # Upload main model
             s3_model_path = self.deployment.s3.upload_file(
                 project_name=self.project_name.replace(" ", ""),
                 source_path=model_filepath.as_posix(),
@@ -597,12 +607,13 @@ class Propheto:
         # UPLOAD LOGS
         if action == "deploy":
             log_path = Path(self.working_directory, "propheto-package", "logs")
-            s3_response = self.deployment.s3.upload_folder(
-                project_name=self.project_name.replace(" ", ""),
-                local_folder_path=log_path,
-                output_folder_path="logs",
-            )
-            print("Uploaded local logs")
+            if log_path.exists():
+                s3_response = self.deployment.s3.upload_folder(
+                    project_name=self.project_name.replace(" ", ""),
+                    local_folder_path=log_path,
+                    output_folder_path="logs",
+                )
+                print("Uploaded local logs")
 
         # GENERATE API CODE
         api_deployment_stage = 'dev'
@@ -769,6 +780,17 @@ class Propheto:
             # UPLOAD MODEL PACKAGE
             _model_filename = model_filepath.parts[-1]
             print(_model_filename)
+            # 
+            # Upload a datetime stamped version of the model as well
+            _timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+            _split_model_filename, _split_model_filetype = _model_filename.split('.')
+            _timestamped_model_filename = f"models/{_split_model_filename}_{_timestamp}.{_split_model_filetype}"
+            _ = self.deployment.s3.upload_file(
+                project_name=self.project_name.replace(" ", ""),
+                source_path=model_filepath.as_posix(),
+                filename=_timestamped_model_filename,
+            )
+            # Save the model
             s3_model_path = self.deployment.s3.upload_file(
                 project_name=project_name,
                 source_path=model_filepath.as_posix(),
