@@ -130,3 +130,7 @@ dmypy.json
 
 # asdf project settings
 /.tool-versions
+
+
+# vscode
+.vscode/
