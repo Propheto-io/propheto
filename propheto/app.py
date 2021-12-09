@@ -571,7 +571,7 @@ class Propheto:
         )
 
         # CREATE BUCKET & FORMAT NAME
-        s3_bucket_name = self.project_name.replace(" ", "")
+        s3_bucket_name = self.project_name.replace(" ", "").replace(".", "")
         for number in range(10):
             s3_bucket_name = s3_bucket_name.replace(str(number), "")
         if action == "deploy":
