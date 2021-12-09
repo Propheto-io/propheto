@@ -607,12 +607,13 @@ class Propheto:
         # UPLOAD LOGS
         if action == "deploy":
             log_path = Path(self.working_directory, "propheto-package", "logs")
-            s3_response = self.deployment.s3.upload_folder(
-                project_name=self.project_name.replace(" ", ""),
-                local_folder_path=log_path,
-                output_folder_path="logs",
-            )
-            print("Uploaded local logs")
+            if log_path.exists():
+                s3_response = self.deployment.s3.upload_folder(
+                    project_name=self.project_name.replace(" ", ""),
+                    local_folder_path=log_path,
+                    output_folder_path="logs",
+                )
+                print("Uploaded local logs")
 
         # GENERATE API CODE
         api_deployment_stage = 'dev'
