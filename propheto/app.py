@@ -575,7 +575,7 @@ class Propheto:
         for number in range(10):
             s3_bucket_name = s3_bucket_name.replace(str(number), "")
         if action == "deploy":
-            s3_bucket_name = self.deployment.s3.create_bucket(self.project_name)
+            s3_bucket_name = self.deployment.s3.create_bucket(s3_bucket_name)
             print("Created S3 bucket...")
 
         self.config.add_resource(
