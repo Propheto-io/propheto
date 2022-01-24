@@ -615,6 +615,9 @@ class Propheto:
                     output_folder_path="logs",
                 )
                 print("Uploaded local logs")
+            else:
+                pass
+                # print("No logs file found")
 
         # GENERATE API CODE
         api_deployment_stage = 'dev'
